@@ -1,0 +1,13 @@
+{
+  "checkpoint": "post_extraction",
+  "tables": {
+    "departments": {
+      "row_count": 12,
+      "baseline_row_count": 12,
+      "row_count_match": true,
+      "no_columns_dropped": true,
+      "passed": true
+    }
+  },
+  "passed": true
+}

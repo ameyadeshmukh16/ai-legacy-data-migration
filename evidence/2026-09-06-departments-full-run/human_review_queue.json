@@ -1,0 +1,11 @@
+[
+  {
+    "mapping_index": 2,
+    "source_table": "departments",
+    "source_column": "dept_name",
+    "target_table": "departments",
+    "target_column": "dept_name",
+    "confidence": 0.3,
+    "reasoning": "The column name suggests a department name, but sample values are mixed between medical specialties and corporate names, making the exact business meaning ambiguous. Because of this uncertainty, confidence is low. Target identifiers are derived directly from source as no clearer target schema is provided."
+  }
+]

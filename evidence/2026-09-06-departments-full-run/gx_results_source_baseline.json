@@ -1,0 +1,80 @@
+{
+  "checkpoint": "source_baseline",
+  "tables": {
+    "departments": {
+      "row_count": 12,
+      "passed": true,
+      "expectations": [
+        {
+          "expectation": "ExpectTableRowCountToBeBetween",
+          "kwargs": {
+            "min_value": 11
+          },
+          "success": true,
+          "result": {
+            "observed_value": 12
+          }
+        },
+        {
+          "expectation": "ExpectColumnValuesToNotBeNull",
+          "kwargs": {
+            "column": "dept_id"
+          },
+          "success": true,
+          "result": {
+            "element_count": 12,
+            "unexpected_count": 0,
+            "unexpected_percent": 0.0,
+            "partial_unexpected_list": [],
+            "partial_unexpected_counts": []
+          }
+        },
+        {
+          "expectation": "ExpectColumnValuesToBeUnique",
+          "kwargs": {
+            "column": "dept_id"
+          },
+          "success": true,
+          "result": {
+            "element_count": 12,
+            "unexpected_count": 0,
+            "unexpected_percent": 0.0,
+            "partial_unexpected_list": [],
+            "missing_count": 0,
+            "missing_percent": 0.0,
+            "unexpected_percent_total": 0.0,
+            "unexpected_percent_nonmissing": 0.0,
+            "partial_unexpected_counts": []
+          }
+        },
+        {
+          "expectation": "ExpectColumnValuesToBeInSet",
+          "kwargs": {
+            "column": "dept_typ_cd",
+            "mostly": 0.98,
+            "value_set": [
+              "IPD",
+              "OPD",
+              "ICU",
+              "ER",
+              "SRG"
+            ]
+          },
+          "success": true,
+          "result": {
+            "element_count": 12,
+            "unexpected_count": 0,
+            "unexpected_percent": 0.0,
+            "partial_unexpected_list": [],
+            "missing_count": 0,
+            "missing_percent": 0.0,
+            "unexpected_percent_total": 0.0,
+            "unexpected_percent_nonmissing": 0.0,
+            "partial_unexpected_counts": []
+          }
+        }
+      ]
+    }
+  },
+  "passed": true
+}

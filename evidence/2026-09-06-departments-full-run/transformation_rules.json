@@ -1,0 +1,61 @@
+[
+  {
+    "source_table": "departments",
+    "target_table": "departments",
+    "source_column": "dept_id",
+    "target_column": "dept_id",
+    "logic": "dept_id",
+    "target_type": "NUMBER",
+    "null_handling": "preserve",
+    "edge_cases": [],
+    "confidence": 0.99,
+    "prompt_id": "dc8286c5-d568-4c65-9995-649e099e146f",
+    "human_reviewed": true,
+    "override_note": "Auto-cleared at/above threshold."
+  },
+  {
+    "source_table": "departments",
+    "target_table": "departments",
+    "source_column": "dept_cd",
+    "target_column": "dept_cd",
+    "logic": "dept_cd",
+    "target_type": "STRING",
+    "null_handling": "preserve",
+    "edge_cases": [],
+    "confidence": 0.92,
+    "prompt_id": "fa7d0219-c36a-4647-8fd9-c10b05329db0",
+    "human_reviewed": true,
+    "override_note": "Auto-cleared at/above threshold."
+  },
+  {
+    "source_table": "departments",
+    "target_table": "departments",
+    "source_column": "dept_name",
+    "target_column": "dept_name",
+    "logic": "TRIM(dept_name)",
+    "target_type": "STRING",
+    "null_handling": "preserve",
+    "edge_cases": [
+      "NULL values",
+      "leading/trailing whitespace"
+    ],
+    "confidence": 0.3,
+    "prompt_id": "a45a9a4e-8b50-46d7-9f05-64feb4cdbd51",
+    "human_reviewed": true,
+    "override_note": "Domain expert confirmed semantics for dept_name (automated test approval)."
+  },
+  {
+    "source_table": "departments",
+    "target_table": "departments",
+    "source_column": "dept_typ_cd",
+    "target_column": "department_type_code",
+    "logic": "dept_typ_cd",
+    "target_type": "STRING",
+    "null_handling": "preserve",
+    "edge_cases": [],
+    "confidence": 0.9,
+    "prompt_id": "e2c6138e-3909-470f-9ca5-3b7adeaf230f",
+    "human_reviewed": true,
+    "override_note": "Auto-cleared at/above threshold."
+  }
+]

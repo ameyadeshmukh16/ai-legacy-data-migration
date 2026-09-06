@@ -1,0 +1,45 @@
+{
+  "checkpoint": "post_load",
+  "tables": {
+    "departments": {
+      "row_count": 12,
+      "baseline_row_count": 12,
+      "passed": true,
+      "expectations": [
+        {
+          "expectation": "ExpectTableRowCountToEqual",
+          "kwargs": {
+            "value": 12
+          },
+          "success": true,
+          "result": {
+            "observed_value": 12
+          }
+        }
+      ],
+      "null_rate_check": {
+        "dept_id": {
+          "source": 0.0,
+          "target": 0.0,
+          "within_tolerance": true
+        },
+        "dept_cd": {
+          "source": 0.0,
+          "target": 0.0,
+          "within_tolerance": true
+        },
+        "dept_name": {
+          "source": 0.0,
+          "target": 0.0,
+          "within_tolerance": true
+        },
+        "department_type_code": {
+          "source": 0.0,
+          "target": 0.0,
+          "within_tolerance": true
+        }
+      }
+    }
+  },
+  "passed": true
+}

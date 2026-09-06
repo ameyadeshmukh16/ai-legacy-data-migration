@@ -1,0 +1,271 @@
+{
+  "database_kind": "postgresql",
+  "tables": {
+    "departments": {
+      "columns": [
+        {
+          "name": "dept_id",
+          "data_type": "BIGINT",
+          "nullable": false,
+          "row_count": 12,
+          "null_count": 0,
+          "null_rate": 0.0,
+          "cardinality": 12,
+          "sample_values": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ],
+          "value_distribution": [
+            {
+              "value": "1",
+              "count": 1
+            },
+            {
+              "value": "2",
+              "count": 1
+            },
+            {
+              "value": "3",
+              "count": 1
+            },
+            {
+              "value": "4",
+              "count": 1
+            },
+            {
+              "value": "5",
+              "count": 1
+            },
+            {
+              "value": "6",
+              "count": 1
+            },
+            {
+              "value": "7",
+              "count": 1
+            },
+            {
+              "value": "8",
+              "count": 1
+            },
+            {
+              "value": "9",
+              "count": 1
+            },
+            {
+              "value": "10",
+              "count": 1
+            },
+            {
+              "value": "11",
+              "count": 1
+            },
+            {
+              "value": "12",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "name": "dept_cd",
+          "data_type": "VARCHAR(20)",
+          "nullable": true,
+          "row_count": 12,
+          "null_count": 0,
+          "null_rate": 0.0,
+          "cardinality": 12,
+          "sample_values": [
+            "CARD",
+            "ORTH",
+            "DEPKFX",
+            "DEPBOI",
+            "DEPXHZ",
+            "DEPYUZ",
+            "DEPVZI",
+            "DEPJXJ",
+            "DEPRJT",
+            "DEPGIJ",
+            "DEPJCU",
+            "DEPRBU"
+          ],
+          "value_distribution": [
+            {
+              "value": "CARD",
+              "count": 1
+            },
+            {
+              "value": "ORTH",
+              "count": 1
+            },
+            {
+              "value": "DEPKFX",
+              "count": 1
+            },
+            {
+              "value": "DEPBOI",
+              "count": 1
+            },
+            {
+              "value": "DEPXHZ",
+              "count": 1
+            },
+            {
+              "value": "DEPYUZ",
+              "count": 1
+            },
+            {
+              "value": "DEPVZI",
+              "count": 1
+            },
+            {
+              "value": "DEPJXJ",
+              "count": 1
+            },
+            {
+              "value": "DEPRJT",
+              "count": 1
+            },
+            {
+              "value": "DEPGIJ",
+              "count": 1
+            },
+            {
+              "value": "DEPJCU",
+              "count": 1
+            },
+            {
+              "value": "DEPRBU",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "name": "dept_name",
+          "data_type": "VARCHAR(120)",
+          "nullable": true,
+          "row_count": 12,
+          "null_count": 0,
+          "null_rate": 0.0,
+          "cardinality": 12,
+          "sample_values": [
+            "Cardiology",
+            "Orthopedics",
+            "Smith LLC",
+            "Smith and Sons",
+            "Massey, Parks and Terry",
+            "Knight-Wood",
+            "Smith, Rowland and Clayton",
+            "Lang, Bennett and Wilson",
+            "Dudley-Bennett",
+            "Taylor, Bridges and Hudson",
+            "Walker-Gonzalez",
+            "Price, Morris and Griffin"
+          ],
+          "value_distribution": [
+            {
+              "value": "Cardiology",
+              "count": 1
+            },
+            {
+              "value": "Orthopedics",
+              "count": 1
+            },
+            {
+              "value": "Smith LLC",
+              "count": 1
+            },
+            {
+              "value": "Smith and Sons",
+              "count": 1
+            },
+            {
+              "value": "Massey, Parks and Terry",
+              "count": 1
+            },
+            {
+              "value": "Knight-Wood",
+              "count": 1
+            },
+            {
+              "value": "Smith, Rowland and Clayton",
+              "count": 1
+            },
+            {
+              "value": "Lang, Bennett and Wilson",
+              "count": 1
+            },
+            {
+              "value": "Dudley-Bennett",
+              "count": 1
+            },
+            {
+              "value": "Taylor, Bridges and Hudson",
+              "count": 1
+            },
+            {
+              "value": "Walker-Gonzalez",
+              "count": 1
+            },
+            {
+              "value": "Price, Morris and Griffin",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "name": "dept_typ_cd",
+          "data_type": "VARCHAR(3)",
+          "nullable": true,
+          "row_count": 12,
+          "null_count": 0,
+          "null_rate": 0.0,
+          "cardinality": 4,
+          "sample_values": [
+            "IPD",
+            "IPD",
+            "ICU",
+            "SRG",
+            "ER",
+            "SRG",
+            "SRG",
+            "SRG",
+            "ICU",
+            "ICU",
+            "ER",
+            "ICU"
+          ],
+          "value_distribution": [
+            {
+              "value": "ICU",
+              "count": 4
+            },
+            {
+              "value": "SRG",
+              "count": 4
+            },
+            {
+              "value": "IPD",
+              "count": 2
+            },
+            {
+              "value": "ER",
+              "count": 2
+            }
+          ]
+        }
+      ],
+      "foreign_keys": []
+    }
+  },
+  "fk_graph": []
+}

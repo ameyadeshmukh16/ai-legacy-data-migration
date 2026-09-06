@@ -352,6 +352,36 @@ Verified end-to-end against a real Snowflake load: `DESCRIBE TABLE` on the migra
 
 ---
 
+## Post-Phase-7 Remediation - Integration Gaps Found by External Review (done)
+
+After all 7 phases above were built, an external review (ChatGPT) audited the completed codebase and found that several pieces verified in isolation during Phases 3/4/6 above were never actually wired into the *executable* `workflow/langgraph_orchestrator.py` graph — the phase-level "verified end-to-end" claims were true for standalone scripts, not for a real pipeline run. Independently verified each claim against the code (not taken on the review's word) and found:
+
+1. **`migration/executor.py` never applied AI-generated transformation rules** — it copied raw source values under source column names, using `rules` only for the confidence gate. The core "AI-assisted transformation" claim wasn't actually happening.
+2. **`human_review_gate` had a real merge bug** — it required a decision for every mapping (including auto-cleared ones that never entered the review queue), breaking on the common case of a mixed batch.
+3. **No LangGraph checkpointer was configured** (found independently, not by the review) — `Command(resume=...)` raised unconditionally, meaning the human-review pause/resume flow the README already claimed worked could not function at all.
+4. **Great Expectations and dbt were fully built but never invoked from the graph** — `validator` only called the weaker row-count-only `validation/validator.py`, and dbt was a manual-CLI-only step.
+5. **`TABLES_TO_MIGRATE` defaulted to 2 of 8 seeded tables**, below the rubric's 5-table minimum, and `sources.yml` hard-coded those same 2 tables.
+6. **Test coverage was 2 tests against inline dict literals**, not real functions.
+
+Fixed all of these (`migration/executor.py` rewritten for rule-driven transformation with a SQL-injection allow-list validator and LLM-supplied target-type hints; `human_review_gate` merge logic corrected; `MemorySaver` checkpointer added with a real run/resume loop; GX checkpoints wired into `schema_profiler`/`migration_executor`/`validator`; a new `validation/dbt_runner.py` invokes dbt via subprocess from `validator`; `TABLES_TO_MIGRATE` expanded to 5 tables with `sources.yml` updated; test suite grown to 28 tests exercising real functions).
+
+**Live verification against real Postgres + Snowflake** (not just unit tests) then surfaced 4 further real bugs, each fixed and covered by a new regression test:
+- `agents/ai_mapper.py` returning an empty string or the literal `'UNKNOWN'` for `target_column` when given no target schema, causing a "duplicate column name" crash in Snowflake when two columns collided — fixed with a stronger prompt instruction plus a `_fallback_target()` backstop that doesn't rely on prompt compliance alone.
+- `migration/executor.py` needed `_check_unique_target_columns` to fail fast and clearly on any remaining collision rather than reaching Snowflake as a cryptic SQL error.
+- A numpy-bool JSON-serialization crash in `gx_checkpoints.py` (`pandas.isna().mean()` comparisons aren't natively JSON-serializable, and `audit_logger.py` has no `default=str` fallback by design, to keep the audit format canonical) — fixed with explicit `bool()`/`float()` casts.
+- `validation/validator.py` was still querying Snowflake target stats by source column names after the rename, breaking `reconciliation_report.json`'s shape that `generate_seeds.py` depends on — fixed by querying by `target_column` and re-keying the result back to source names.
+- `validation/dbt_models/models/fk_integrity_check.sql` was hardcoded to always check `appointments`/`patient_records`, failing dbt for any smaller-scope run that doesn't include both — fixed to use `adapter.get_relation()` and skip gracefully (empty passing result) when either table doesn't exist for the current run.
+
+**Provider note**: also discovered mid-remediation that Gemini's free tier (20 requests/day) and NVIDIA NIM's `gpt-oss-20b` (unreliable/hanging under `with_structured_output` for this project's real prompts, confirmed via direct timing tests) were both unworkable for a multi-table live run. Switched the default to Groq's `openai/gpt-oss-120b` (fast, correct, but rate-limited to ~8000 tokens/minute on the free tier — a full 5-table run takes 20-30+ minutes). `config/llm_factory.py` now supports `groq`/`google_genai`/`nvidia`/`anthropic`/`openai`, all a config-only swap.
+
+**Verification performed** (against real Postgres/Snowflake, not mocks):
+- A full pipeline run (`departments` table, to fit free-tier rate limits) completed successfully end-to-end for the first time — `python -m workflow.langgraph_orchestrator` genuinely paused at `human_review_gate`, resumed via `Command(resume=...)` in the same process, ran the rule-driven executor (`DESCRIBE TABLE`/`SELECT *` confirmed renamed columns and `TRIM()`-transformed values in the real Snowflake table), all 3 GX checkpoints, dbt seed/run/test (10/10 tests passing), and `doc_generator` — the resulting `audit/migration_audit_log.json` (16 real hash-chained events, chain integrity independently re-verified) and `data/target_data_dictionary.md` are committed as evidence.
+- Deliberately broke `run_post_extraction`'s row-count check (fed a false extraction count against a real GX `source_baseline` result) and confirmed it raises `RuntimeError` and would halt the pipeline.
+- Deliberately fed a transformed value outside `TARGET_VALUE_SETS`'s allowed domain into the real GX `_validate` machinery and confirmed it's correctly flagged as a failed expectation.
+- A run at the full 5-table default scope (`departments,patient_records,doctors,appointments,billing`) has not yet been executed live — every live run so far used a 1-2 table subset to fit within free-tier LLM rate limits during same-day testing. The `sources.yml`/`fk_integrity_check.sql` changes needed for 5-table scope were verified by direct code inspection and the graceful-skip path was tested live, but not the full-scope happy path. This is the one item still pending, deferred to whenever LLM quota/rate-limit headroom allows a ~20-30 minute uninterrupted run.
+
+---
+
 ## Execution Order with Claude Code
 
 Build in this sequence to minimize blocked time:
@@ -393,6 +423,11 @@ Key Claude Code prompts:
 | .env.example | Exists | Minor update |
 | audit_log.json | Exists + hash-chained | No change |
 | architecture.png | Exists | No change |
+| Rule-driven transformation actually executed | Rules generated but never applied (raw copy) | Fixed in post-Phase-7 remediation |
+| Human-review pause/resume actually functions | No checkpointer; `Command(resume=...)` always raised | Fixed in post-Phase-7 remediation |
+| GX/dbt wired into the executable graph | Verified only as standalone scripts | Fixed in post-Phase-7 remediation |
+| 5+ tables in default migration scope | 2 of 8 tables | Fixed in post-Phase-7 remediation |
+| Test coverage of real functions | 2 tests on inline dict literals | 28 tests on real functions |
 
 ---
 

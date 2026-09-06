@@ -1,0 +1,62 @@
+[
+  {
+    "source_table": "departments",
+    "source_column": "dept_id",
+    "target_table": "departments",
+    "target_column": "dept_id",
+    "inferred_meaning": "Unique identifier for each department",
+    "transformation_rule": "Copy value directly; no transformation required",
+    "null_handling": "No null values; preserve as non\u2011null BIGINT",
+    "edge_cases": [],
+    "confidence": 0.99,
+    "reasoning": "The column is a BIGINT primary\u2011key style field with a full set of sequential sample values, zero null rate, and no foreign key relationships, indicating it is the department identifier. The most reliable target mapping is to keep the same table and column name.",
+    "prompt_id": "8e36af40-3562-4a00-a2fe-5ce2070c97db"
+  },
+  {
+    "source_table": "departments",
+    "source_column": "dept_cd",
+    "target_table": "departments",
+    "target_column": "dept_cd",
+    "inferred_meaning": "Department code identifier",
+    "transformation_rule": "No transformation required; copy value directly",
+    "null_handling": "No null values present; preserve as is",
+    "edge_cases": [
+      "Future records may contain nulls",
+      "Unexpected characters or length beyond VARCHAR(20)"
+    ],
+    "confidence": 0.92,
+    "reasoning": "The column name 'dept_cd' clearly denotes a department code. Sample values are short alphanumeric strings consistent with a code. No nulls are observed, so a direct copy is appropriate. Since the meaning is unambiguous, confidence is high.",
+    "prompt_id": "3f7257a1-efcc-416e-bdd2-82104f0dbf1a"
+  },
+  {
+    "source_table": "departments",
+    "source_column": "dept_name",
+    "target_table": "departments",
+    "target_column": "dept_name",
+    "inferred_meaning": "Name of a department; sample data includes both medical specialties and business entity names, indicating the column stores a generic department or group identifier.",
+    "transformation_rule": "No transformation needed; retain original string. Optionally trim leading/trailing whitespace.",
+    "null_handling": "No null values present; load as NOT NULL.",
+    "edge_cases": [
+      "Values contain commas, hyphens, and the word 'and' which may affect downstream parsing",
+      "Some values represent company names (e.g., 'Smith LLC') while others are medical specialties"
+    ],
+    "confidence": 0.3,
+    "reasoning": "The column name suggests a department name, but sample values are mixed between medical specialties and corporate names, making the exact business meaning ambiguous. Because of this uncertainty, confidence is low. Target identifiers are derived directly from source as no clearer target schema is provided.",
+    "prompt_id": "c7d92919-dd42-473e-9444-007e86bb1908"
+  },
+  {
+    "source_table": "departments",
+    "source_column": "dept_typ_cd",
+    "target_table": "departments",
+    "target_column": "department_type_code",
+    "inferred_meaning": "Code representing the type of department (e.g., Inpatient, Intensive Care Unit, Surgery, Emergency)",
+    "transformation_rule": "Copy value directly; no transformation required",
+    "null_handling": "preserve nulls (none present)",
+    "edge_cases": [
+      "Values outside the observed set (IPD, ICU, SRG, ER) may appear"
+    ],
+    "confidence": 0.9,
+    "reasoning": "The column name and sample values clearly indicate it stores a department type code. A more descriptive snake_case name 'department_type_code' can be inferred with high confidence. No transformation is needed as the target column can store the same three\u2011character codes. Nulls are absent, so they can be preserved. Confidence is high because the meaning is unambiguous, but a small uncertainty remains for potential unseen codes.",
+    "prompt_id": "2575809f-ebf4-47fc-9aaa-ccc5661e102c"
+  }
+]
