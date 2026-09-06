@@ -5,6 +5,7 @@ from pathlib import Path
 from langgraph.graph import StateGraph,START,END
 from langgraph.types import interrupt
 from config.settings import settings
+from config.observability import score_human_review_decision
 from audit.audit_logger import AuditLogger
 from agents.schema_profiler import profile_database
 from agents.ai_mapper import map_schema
@@ -51,6 +52,7 @@ def human_review_gate(s):
         if x["confidence"]<t and not note: raise PermissionError("Low-confidence decision requires override_note")
         approved.append(dict(x,human_reviewed=True,override_note=note))
         audit.append(s["run_id"],"human_mapping_approved",{"mapping_index":i,"source_column":x["source_column"],"decision":d["decision"],"override_note":note})
+        score_human_review_decision(s["run_id"],i,x["source_column"],d["decision"],note)
     Path("data/approved_mappings.json").write_text(json.dumps(approved,indent=2),encoding="utf-8")
     return {"approved_mappings":approved}
 

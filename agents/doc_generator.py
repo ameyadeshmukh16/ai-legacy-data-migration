@@ -3,10 +3,11 @@ from pathlib import Path
 from langchain_core.prompts import ChatPromptTemplate
 from config.settings import settings
 from config.llm_factory import get_chat_llm
+from config.observability import get_langfuse_callback
 from audit.audit_logger import AuditLogger
 
 def generate_documentation(profile,mappings,rules,run_id):
-    llm=get_chat_llm()
+    llm=get_chat_llm().with_config({"callbacks":[get_langfuse_callback(run_id,"doc_generator")],"tags":["migration","healthcare"]})
     msgs=ChatPromptTemplate.from_messages([
         ("system","Create a concise target data dictionary in Markdown. Include target columns, definitions, source lineage, transformation logic, confidence and human overrides. Do not invent business facts."),
         ("human","Schema profile:\n{profile}\n\nApproved mappings:\n{mappings}\n\nRules:\n{rules}")

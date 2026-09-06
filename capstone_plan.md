@@ -17,7 +17,7 @@ Since the base project already has the LangGraph orchestrator, all 7 nodes, audi
 | Phase | Time | What gets done | Base status |
 |-------|------|----------------|-------------|
 | Phase 1 - Schema expansion + seed data | 40 min | Expand 5-table schema to 8 tables, write seed script (10k+ rows) | init_db.sql exists but minimal, no seed script |
-| Phase 2 - LLM swap + LangFuse | 25 min | LLM swap done (OpenAI to Gemini via provider factory); remaining work is wiring LangFuse callbacks | Agents exist, LLM swap complete, LangFuse undone |
+| Phase 2 - LLM swap + LangFuse | 25 min | LLM swap (OpenAI to Gemini via provider factory) and LangFuse callback/scoring wiring both done | Complete |
 | Phase 3 - Great Expectations | 35 min | Implement actual GX suites for all 3 checkpoints | README placeholder only |
 | Phase 4 - dbt models | 20 min | Replace stub SQL with real row count, null rate, FK integrity models | Single stub SELECT exists |
 | Phase 5 - Lineage visualization | 30 min | Build lineage_generator.py, Mermaid output, color-coded by confidence | Entirely missing |
@@ -136,24 +136,36 @@ LLM_MODEL=gemini-flash-latest
 
 Note: Gemini's free tier gives **zero** request quota to `-pro` models (confirmed via a live 429 during setup) — `gemini-flash-latest` is the model that actually has free-tier quota and is what's configured. If richer reasoning is needed later, either request pro-tier quota/billing or switch `LLM_PROVIDER` to `anthropic`.
 
-### 2.2 Wire LangFuse
+### 2.2 Wire LangFuse (done)
 
-LangFuse has a native LangChain callback handler - this is the lowest-effort path.
+The installed `langfuse` SDK is v4.x, which redesigned the integration from the original v2-era plan: the callback now lives at `langfuse.langchain.CallbackHandler` (not `langfuse.callback`), auth/host come from the `Langfuse()` client singleton reading `LANGFUSE_PUBLIC_KEY`/`LANGFUSE_SECRET_KEY`/`LANGFUSE_HOST` env vars directly (no constructor kwargs for these), and scoring is `Langfuse.create_score(...)`/`score_current_trace(...)` rather than `langfuse_handler.langfuse.score(...)`. `requirements.txt` was bumped to `langfuse>=3.0` to reflect this.
 
-In each agent, add the callback at LLM initialization:
+`config/observability.py` wraps this as a small helper:
 ```python
-from langfuse.callback import CallbackHandler
-langfuse_handler = CallbackHandler(
-    public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-    secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-    host=os.getenv("LANGFUSE_HOST"),
-    trace_name=f"ai_mapper_{run_id}",
-    tags=["migration", "healthcare"]
-)
-llm = get_chat_llm().with_config({"callbacks": [langfuse_handler]})
+from langfuse import Langfuse
+from langfuse.langchain import CallbackHandler
+from langfuse.types import TraceContext
+
+def get_langfuse_client():
+    ...  # cached Langfuse() singleton, reads env vars automatically
+
+def trace_id_for(run_id, node_name):
+    return get_langfuse_client().create_trace_id(seed=f"{run_id}:{node_name}")
+
+def get_langfuse_callback(run_id, node_name):
+    return CallbackHandler(trace_context=TraceContext(trace_id=trace_id_for(run_id, node_name)))
+
+def score_human_review_decision(run_id, mapping_index, source_column, decision, override_note):
+    get_langfuse_client().create_score(
+        trace_id=trace_id_for(run_id, "ai_mapper"),
+        name="human_review_decision",
+        value=1.0 if decision.lower() == "approve" else 0.0,
+        data_type="BOOLEAN",
+        comment=f"mapping_index={mapping_index} column={source_column} note={override_note}",
+    )
 ```
 
-Human review decisions get logged as LangFuse scores via `langfuse_handler.langfuse.score(...)` in `human_review_gate` node - attaches override decisions to the relevant trace.
+Each agent wires the callback at LLM initialization: `llm = get_chat_llm().with_config({"callbacks": [get_langfuse_callback(run_id, "ai_mapper")], "tags": ["migration", "healthcare"]})`. Trace IDs are deterministic (seeded from `run_id` + node name), so `human_review_gate` in the orchestrator can call `score_human_review_decision(...)` after each override decision and have it land on the same `ai_mapper` trace that produced the original low-confidence suggestion — verified end-to-end via the LangFuse public API (trace + attached score both confirmed present).
 
 ---
 
@@ -338,7 +350,7 @@ Build in this sequence to minimize blocked time:
 
 1. `scripts/init_db.sql` - schema expansion (run and verify in Docker first)
 2. `seed/seed_db.py` - seed data (run, confirm row counts)
-3. `agents/ai_mapper.py` + `agents/rule_generator.py` + `agents/doc_generator.py` - LLM swap to Gemini (done) + LangFuse callbacks (remaining)
+3. `agents/ai_mapper.py` + `agents/rule_generator.py` + `agents/doc_generator.py` - LLM swap to Gemini + LangFuse callbacks (both done)
 4. `validation/great_expectations/gx_checkpoints.py` - GX suites
 5. `validation/dbt_models/` - real SQL models
 6. `lineage/lineage_generator.py` - Mermaid generator
@@ -360,7 +372,7 @@ Key Claude Code prompts:
 |-------------|-------------|-----------------|
 | 7 LangGraph nodes | Done | Done |
 | Human-in-the-loop gate | Done (real interrupt) | Done |
-| LangFuse instrumentation | Missing | Remaining Phase 2 work |
+| LangFuse instrumentation | Missing | Added Phase 2 |
 | Great Expectations (3 checkpoints) | README stub | Added Phase 3 |
 | dbt post-migration models | Single stub SQL | Added Phase 4 |
 | 10,000+ rows seed data | 1 demo row | Added Phase 1 |

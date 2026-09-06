@@ -3,6 +3,7 @@ from pydantic import BaseModel,Field
 from langchain_core.prompts import ChatPromptTemplate
 from config.settings import settings
 from config.llm_factory import get_chat_llm
+from config.observability import get_langfuse_callback
 from audit.audit_logger import AuditLogger
 
 class TransformationRule(BaseModel):
@@ -23,6 +24,7 @@ def validate_rules_before_execution(rules):
 
 def generate_rules(mappings,run_id):
     llm=get_chat_llm().with_structured_output(TransformationRule)
+    llm=llm.with_config({"callbacks":[get_langfuse_callback(run_id,"rule_generator")],"tags":["migration","healthcare"]})
     audit=AuditLogger(settings.audit_log_path); rules=[]
     for m in mappings:
         pid=str(uuid4())

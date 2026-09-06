@@ -4,6 +4,7 @@ from pydantic import BaseModel,Field
 from langchain_core.prompts import ChatPromptTemplate
 from config.settings import settings
 from config.llm_factory import get_chat_llm
+from config.observability import get_langfuse_callback
 from audit.audit_logger import AuditLogger
 
 class MappingSuggestion(BaseModel):
@@ -23,6 +24,7 @@ SYSTEM_PROMPT="""You are a senior data migration assistant. Infer semantic meani
 
 def map_schema(profile,run_id):
     llm=get_chat_llm().with_structured_output(MappingSuggestion)
+    llm=llm.with_config({"callbacks":[get_langfuse_callback(run_id,"ai_mapper")],"tags":["migration","healthcare"]})
     audit=AuditLogger(settings.audit_log_path); results=[]
     for table,meta in profile["tables"].items():
         for col in meta["columns"]:
