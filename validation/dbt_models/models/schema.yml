@@ -1,0 +1,54 @@
+version: 2
+
+seeds:
+  - name: migration_counts_seed
+    description: "Source vs target row counts per migrated table, generated from data/reconciliation_report.json."
+    columns:
+      - name: table_name
+        tests:
+          - not_null
+          - unique
+      - name: source_row_count
+        tests:
+          - not_null
+      - name: target_row_count
+        tests:
+          - not_null
+
+  - name: null_rates_seed
+    description: "Per-column null rates in source vs target, generated from data/reconciliation_report.json."
+    columns:
+      - name: table_name
+        tests:
+          - not_null
+      - name: column_name
+        tests:
+          - not_null
+
+models:
+  - name: row_count_reconciliation
+    description: "Flags any migrated table where source and target row counts don't match."
+    columns:
+      - name: table_name
+        tests:
+          - not_null
+      - name: status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['PASS', 'FAIL']
+
+  - name: null_rate_check
+    description: "Flags any column where the source-to-target null rate delta exceeds 2%."
+    columns:
+      - name: table_name
+        tests:
+          - not_null
+      - name: status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['PASS', 'FAIL']
+
+  - name: fk_integrity_check
+    description: "Rows returned here are orphaned appointments.pat_id values with no matching patient_records.pat_id in the target. An empty result set means FK integrity held."

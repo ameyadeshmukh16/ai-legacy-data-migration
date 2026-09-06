@@ -3,3 +3,7 @@ credentials.json
 .venv/
 __pycache__/
 *.pyc
+validation/dbt_models/target/
+validation/dbt_models/logs/
+validation/dbt_models/.user.yml
+validation/dbt_models/seeds/*.csv

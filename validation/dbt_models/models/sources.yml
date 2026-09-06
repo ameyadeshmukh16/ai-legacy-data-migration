@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: migration_target
+    database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+    schema: "{{ env_var('TARGET_SCHEMA', 'MIGRATION_STAGE') }}"
+    quoting:
+      identifier: true
+    tables:
+      - name: "patient_records_{{ var('run_id', 'unset') | replace('-', '_') }}"
+      - name: "appointments_{{ var('run_id', 'unset') | replace('-', '_') }}"

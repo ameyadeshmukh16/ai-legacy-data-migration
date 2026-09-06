@@ -1,0 +1,12 @@
+name: migration_validation
+version: '1.0.0'
+config-version: 2
+
+profile: migration_validation
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+
+models:
+  migration_validation:
+    +materialized: view
