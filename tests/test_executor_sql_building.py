@@ -1,5 +1,5 @@
 import pytest
-from migration.executor import _build_select_sql, _validate_logic, _validate_identifier, snowflake_type
+from migration.executor import _build_select_sql, _validate_logic, _validate_identifier, snowflake_type, _check_unique_target_columns
 
 def test_snowflake_type_mappings():
     assert snowflake_type("VARCHAR(80)") == "VARCHAR(80)"
@@ -46,3 +46,21 @@ def test_build_select_sql_produces_expected_shape():
     assert 'AS "pat_id"' in sql
     assert 'AS "patient_status"' in sql
     assert "CASE WHEN pat_st_cd = 'A'" in sql
+
+def test_check_unique_target_columns_raises_on_duplicate():
+    # Reproduces a real failure seen live: two low-confidence AI mappings both
+    # fell back to target_column='UNKNOWN' when no target schema was supplied,
+    # which previously reached Snowflake as a duplicate-column CREATE TABLE error.
+    rules = [
+        {"source_column": "dept_id", "target_column": "UNKNOWN"},
+        {"source_column": "dept_cd", "target_column": "UNKNOWN"},
+    ]
+    with pytest.raises(RuntimeError):
+        _check_unique_target_columns("departments", rules)
+
+def test_check_unique_target_columns_passes_when_distinct():
+    rules = [
+        {"source_column": "dept_id", "target_column": "department_id"},
+        {"source_column": "dept_cd", "target_column": "department_code"},
+    ]
+    _check_unique_target_columns("departments", rules)

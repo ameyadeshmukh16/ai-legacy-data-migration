@@ -83,7 +83,7 @@ def validator(s):
     post_load_report=run_post_load(s["schema_profile"],s["run_id"],s["gx_baseline_report"],s["rules"])
     if not post_load_report["passed"]: raise RuntimeError("Great Expectations post_load checkpoint failed; migration blocked.")
     audit.append(s["run_id"],"gx_post_load_completed",{"passed":post_load_report["passed"]})
-    r=run_validation(s["schema_profile"],s["run_id"])
+    r=run_validation(s["schema_profile"],s["run_id"],s["rules"])
     if not r["passed"]: raise RuntimeError("Validation failed; migration cannot complete.")
     dbt_log=run_dbt_validation(s["run_id"])
     audit.append(s["run_id"],"dbt_validation_completed",{"steps":list(dbt_log)})

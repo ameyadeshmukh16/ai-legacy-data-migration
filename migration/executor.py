@@ -77,6 +77,14 @@ def _check_full_coverage(table,meta,table_rules):
     if missing:
         raise RuntimeError(f"No transformation rule found for column(s) {sorted(missing)} in table '{table}'. Every migrated column must have an approved rule.")
 
+def _check_unique_target_columns(table,table_rules):
+    seen=set(); dupes=set()
+    for r in table_rules:
+        tc=r["target_column"]
+        (dupes if tc in seen else seen).add(tc)
+    if dupes:
+        raise RuntimeError(f"Multiple rules map to the same target_column {sorted(dupes)} in table '{table}'. Each approved mapping must resolve to a unique target column name (check for placeholder values like 'UNKNOWN' from low-confidence AI mappings).")
+
 def _snowflake_engine():
     url=f"snowflake://{settings.snowflake_user}:{settings.snowflake_password}@{settings.snowflake_account}/{settings.snowflake_database}/{settings.snowflake_schema}?warehouse={settings.snowflake_warehouse}"
     return create_engine(url)
@@ -113,6 +121,7 @@ def execute_migration(profile,rules,run_id,baseline_report):
     for table,meta in profile["tables"].items():
         table_rules=rules_by_table.get(table,[])
         _check_full_coverage(table,meta,table_rules)
+        _check_unique_target_columns(table,table_rules)
         source_cols_meta={c["name"]:c for c in meta["columns"]}
 
         select_sql=_build_select_sql(table,table_rules)

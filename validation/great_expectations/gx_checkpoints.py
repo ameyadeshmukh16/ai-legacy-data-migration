@@ -160,19 +160,19 @@ def run_post_load(profile, run_id, baseline_report, rules):
             target_col = r["target_column"]
             if target_col not in df.columns:
                 continue
-            target_null_rate = df[target_col].isna().mean()
+            target_null_rate = float(df[target_col].isna().mean())
             source_col_meta = next((c for c in meta["columns"] if c["name"] == r["source_column"]), None)
             source_null_rate = source_col_meta["null_rate"] if source_col_meta else None
             if source_null_rate is not None:
-                within_tolerance = abs(target_null_rate - source_null_rate) <= 0.02
+                within_tolerance = bool(abs(target_null_rate - source_null_rate) <= 0.02)
                 null_rate_ok = null_rate_ok and within_tolerance
                 null_rate_details[target_col] = {"source": source_null_rate, "target": target_null_rate, "within_tolerance": within_tolerance}
-        table_passed = passed and null_rate_ok
+        table_passed = bool(passed and null_rate_ok)
         report["tables"][table] = {
             "row_count": len(df), "baseline_row_count": baseline_count,
             "passed": table_passed, "expectations": results, "null_rate_check": null_rate_details,
         }
-        report["passed"] = report["passed"] and table_passed
+        report["passed"] = bool(report["passed"] and table_passed)
     _write(report, "post_load")
     if not report["passed"]:
         raise RuntimeError("Great Expectations post_load checkpoint failed")

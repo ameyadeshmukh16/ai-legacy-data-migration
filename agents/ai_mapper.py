@@ -1,4 +1,4 @@
-import json
+import json,re
 from uuid import uuid4
 from pydantic import BaseModel,Field
 from langchain_core.prompts import ChatPromptTemplate
@@ -6,6 +6,14 @@ from config.settings import settings
 from config.llm_factory import get_chat_llm
 from config.observability import get_langfuse_callback
 from audit.audit_logger import AuditLogger
+
+_VALID_IDENT_RE=re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
+_PLACEHOLDER_NAMES={"unknown","none","null","n/a","na","tbd","todo"}
+
+def _fallback_target(name,column):
+    if name and _VALID_IDENT_RE.match(name) and name.lower() not in _PLACEHOLDER_NAMES:
+        return name
+    return column
 
 class MappingSuggestion(BaseModel):
     source_table:str
@@ -20,7 +28,8 @@ class MappingSuggestion(BaseModel):
     reasoning:str
     prompt_id:str
 
-SYSTEM_PROMPT="""You are a senior data migration assistant. Infer semantic meaning only from supplied evidence. Never invent undocumented business meanings. If evidence is weak, lower confidence and explain why human review is required."""
+SYSTEM_PROMPT="""You are a senior data migration assistant. Infer semantic meaning only from supplied evidence. Never invent undocumented business meanings. If evidence is weak, lower confidence and explain why human review is required.
+target_table and target_column must always be non-empty, valid snake_case SQL identifiers (letters, digits, underscores only, starting with a letter or underscore) - never leave them blank and never use placeholders like 'UNKNOWN'. When the target schema is genuinely unclear, default target_table to the same value as source_table and target_column to a cleaned-up snake_case version of the source column name (renamed only if you can confidently infer a clearer name from the evidence, otherwise keep the source name as-is) - and reflect that uncertainty through a low confidence score and reasoning, not through a missing or placeholder name."""
 
 def map_schema(profile,run_id):
     llm=get_chat_llm().with_structured_output(MappingSuggestion)
@@ -44,6 +53,8 @@ Return target mapping, transformation suggestion, confidence 0.0-1.0 and reasoni
                 samples=json.dumps(col["sample_values"],default=str),null_rate=col["null_rate"],
                 cardinality=col["cardinality"],fks=json.dumps(meta["foreign_keys"],default=str))
             r=llm.invoke(msgs); r.prompt_id=pid; r.source_table=table; r.source_column=col["name"]
+            r.target_table=_fallback_target(r.target_table,table)
+            r.target_column=_fallback_target(r.target_column,col["name"])
             item=r.model_dump(); results.append(item)
             audit.append(run_id,"ai_mapping_suggestion",{"prompt_id":pid,"source_table":table,
                 "source_column":col["name"],"target_table":r.target_table,"target_column":r.target_column,
