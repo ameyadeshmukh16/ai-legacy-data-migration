@@ -1,7 +1,30 @@
+import re
 from sqlalchemy import create_engine,text
 from tenacity import retry,stop_after_attempt,wait_exponential
 from config.settings import settings
 from audit.audit_logger import AuditLogger
+
+TYPE_MAP={
+    "BIGINT":"NUMBER(38,0)",
+    "INTEGER":"NUMBER(10,0)",
+    "NUMERIC":"NUMBER(18,4)",
+    "TIMESTAMP":"TIMESTAMP_NTZ",
+    "DATE":"DATE",
+    "BOOLEAN":"BOOLEAN",
+    "TEXT":"VARCHAR(16777216)",
+    "VARCHAR":"VARCHAR({length})",
+}
+
+def snowflake_type(source_type):
+    m=re.match(r"([A-Z]+)(?:\(([\d,\s]+)\))?",source_type.upper())
+    if not m: return "VARCHAR(16777216)"
+    base,args=m.group(1),m.group(2)
+    if base=="NUMERIC" and args:
+        parts=[p.strip() for p in args.split(",")]
+        return f"NUMBER({parts[0]},{parts[1] if len(parts)>1 else 0})"
+    if base=="VARCHAR" and args:
+        return TYPE_MAP["VARCHAR"].format(length=args.strip())
+    return TYPE_MAP.get(base,"VARCHAR(16777216)")
 
 def _snowflake_engine():
     url=f"snowflake://{settings.snowflake_user}:{settings.snowflake_password}@{settings.snowflake_account}/{settings.snowflake_database}/{settings.snowflake_schema}?warehouse={settings.snowflake_warehouse}"
@@ -35,7 +58,7 @@ def execute_migration(profile,rules,run_id):
         select_cols=", ".join(f'"{c}"' for c in columns)
         with source.connect() as conn: rows=conn.execute(text(f'SELECT {select_cols} FROM "{table}"')).fetchall()
         qualified_table=qualified_target_table(table,run_id)
-        defs=", ".join(f'"{c}" VARCHAR' for c in columns)
+        defs=", ".join(f'"{c["name"]}" {snowflake_type(c["data_type"])}' for c in meta["columns"])
         with target.begin() as conn: conn.execute(text(f'CREATE TABLE IF NOT EXISTS {qualified_table} ({defs})'))
         _load_rows(target,qualified_table,columns,rows)
         AuditLogger(settings.audit_log_path).append(run_id,"table_loaded",{"source_table":table,"target_table":qualified_table,"row_count":len(rows)})

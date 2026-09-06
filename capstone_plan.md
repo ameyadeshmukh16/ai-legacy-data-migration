@@ -21,7 +21,7 @@ Since the base project already has the LangGraph orchestrator, all 7 nodes, audi
 | Phase 3 - Great Expectations | 35 min | GX suites for all 3 checkpoints implemented (GX 1.x API); also fixed a pre-existing Snowflake schema-qualification bug and slow row-by-row insert in executor.py | Complete |
 | Phase 4 - dbt models | 20 min | Real row count, null rate, and FK integrity models built and verified against live Snowflake; added missing dbt-core/dbt-snowflake deps | Complete |
 | Phase 5 - Lineage visualization | 30 min | lineage_generator.py built, wired into rule_generator, Mermaid diagrams verified rendering correctly | Complete |
-| Phase 6 - executor type mapping | 15 min | Add source-to-Snowflake type mapping (not all VARCHAR) | Currently loads everything as VARCHAR |
+| Phase 6 - executor type mapping | 15 min | Real type mapping implemented and verified via DESCRIBE TABLE against live Snowflake | Complete |
 | Phase 7 - Documentation update | 25 min | Update README + DECISIONS.md for healthcare domain, add lineage section | Exists but wholesale/generic references |
 
 Total: ~3 hrs 10 min (leaves buffer for testing + unexpected issues)
@@ -311,24 +311,21 @@ The transformation summary extracts `WHEN x = 'A' THEN 'B'` pairs out of generat
 
 ---
 
-## Phase 6 - Executor Type Mapping (15 min)
+## Phase 6 - Executor Type Mapping (15 min, done)
 
-Current `migration/executor.py` creates all Snowflake columns as `VARCHAR`. Fix this with a basic SQLAlchemy-to-Snowflake type map:
+`migration/executor.py` previously created every Snowflake column as `VARCHAR`. Added `TYPE_MAP` (exactly as planned) plus a `snowflake_type(source_type)` function that parses SQLAlchemy's rendered type strings (e.g. `"VARCHAR(80)"`, `"NUMERIC(12, 2)"`, `"BIGINT"`) and maps them:
 
 ```python
 TYPE_MAP = {
-    "BIGINT": "NUMBER(38,0)",
-    "INTEGER": "NUMBER(10,0)",
-    "NUMERIC": "NUMBER(18,4)",
-    "TIMESTAMP": "TIMESTAMP_NTZ",
-    "DATE": "DATE",
-    "BOOLEAN": "BOOLEAN",
-    "TEXT": "VARCHAR(16777216)",
-    "VARCHAR": "VARCHAR({length})",
+    "BIGINT": "NUMBER(38,0)", "INTEGER": "NUMBER(10,0)", "NUMERIC": "NUMBER(18,4)",
+    "TIMESTAMP": "TIMESTAMP_NTZ", "DATE": "DATE", "BOOLEAN": "BOOLEAN",
+    "TEXT": "VARCHAR(16777216)", "VARCHAR": "VARCHAR({length})",
 }
 ```
 
-This makes the dbt FK integrity and null rate checks actually meaningful, since column types are preserved rather than everything being VARCHAR.
+One deviation from the plan's fixed `NUMBER(18,4)` for every `NUMERIC` column: `snowflake_type` preserves the source's actual precision/scale when present (e.g. `billing.bill_amt NUMERIC(12, 2)` → `NUMBER(12,2)`, not a hardcoded `NUMBER(18,4)`) — the fixed default is used only as a fallback for a bare `NUMERIC` with no precision specified. Unknown/unmapped types fall back to `VARCHAR(16777216)` rather than erroring, since Postgres has types (UUID, JSONB, etc.) this project's schema doesn't use but that shouldn't hard-fail a migration.
+
+Verified end-to-end against a real Snowflake load: `DESCRIBE TABLE` on the migrated `patient_records`/`appointments` confirmed `NUMBER(38,0)` for BIGINT PKs, `NUMBER(10,0)` for INTEGER columns, `TIMESTAMP_NTZ(9)` for TIMESTAMP, and correctly-sized VARCHARs — not blanket VARCHAR. Re-ran the Phase 3 GX checkpoints and Phase 4 dbt models against this typed data; both still pass, confirming the type fix doesn't regress the earlier validation work.
 
 ---
 
