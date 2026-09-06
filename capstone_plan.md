@@ -22,7 +22,7 @@ Since the base project already has the LangGraph orchestrator, all 7 nodes, audi
 | Phase 4 - dbt models | 20 min | Real row count, null rate, and FK integrity models built and verified against live Snowflake; added missing dbt-core/dbt-snowflake deps | Complete |
 | Phase 5 - Lineage visualization | 30 min | lineage_generator.py built, wired into rule_generator, Mermaid diagrams verified rendering correctly | Complete |
 | Phase 6 - executor type mapping | 15 min | Real type mapping implemented and verified via DESCRIBE TABLE against live Snowflake | Complete |
-| Phase 7 - Documentation update | 25 min | Update README + DECISIONS.md for healthcare domain, add lineage section | Exists but wholesale/generic references |
+| Phase 7 - Documentation update | 25 min | README + DECISIONS.md rewritten for healthcare domain, LLM provider/lineage/validation sections added, docs/architecture.md refreshed | Complete |
 
 Total: ~3 hrs 10 min (leaves buffer for testing + unexpected issues)
 
@@ -329,23 +329,26 @@ Verified end-to-end against a real Snowflake load: `DESCRIBE TABLE` on the migra
 
 ---
 
-## Phase 7 - Documentation Update (25 min)
+## Phase 7 - Documentation Update (25 min, done)
 
-### README.md - sections to update:
+### README.md - done:
 
-- Project Overview: change domain references from generic to healthcare clinical operations
-- Architecture: add lineage visualization step after doc_generator
-- Run section: add `python -m lineage.lineage_generator` as a post-pipeline step
-- Add section: "Lineage Diagram" - where to find docs/lineage.md and how to render it in GitHub/VS Code
-- Known Limitations: add healthcare-specific notes (clinical code ambiguity, medication abbreviation interpretation)
+- Project Overview rewritten for the healthcare clinical-operations domain, naming the actual undocumented codes and messy fields in this schema.
+- Added an "LLM Provider" section documenting the `config/llm_factory.py` abstraction and the Gemini free-tier quota finding from Phase 2.
+- Architecture diagram updated to show `lineage_generator` after `rule_generator`, typed Snowflake columns, and GX/dbt in the validator step.
+- Run section documents that lineage generation is automatic (a `rule_generator` side effect, not a separate pipeline step — see Phase 5), with the standalone command for regenerating it from existing JSON, plus the dbt seed/run/test commands for a given run_id.
+- Added "Lineage Diagram" section: what the color coding means, where `docs/lineage.md` lives, that GitHub/VS Code render Mermaid natively.
+- Validation section rewritten to describe the real GX 1.x checkpoints and dbt models built in Phases 3-4, not the original generic placeholder description.
+- Known Limitations: added the three healthcare-specific notes (clinical code ambiguity, medication/dosage free text needing clinical SME review specifically, `pri_lvl` ordinal direction being structurally unknowable from data alone).
+- `docs/architecture.md` also lightly refreshed (Gemini, GX/dbt, lineage) since it had gone stale relative to what was actually built — not originally called out as a Phase 7 target but worth keeping in sync.
 
-### DECISIONS.md - additions for healthcare:
+### DECISIONS.md - done:
 
-- **Sensitive data section**: patient PII (first_name, last_name, dob), clinical data (pat_st_cd, blood_grp_cd, med_cd), insurance data (ins_prvdr_cd, ins_clm_st) - all flagged, masking/minimization approach described
-- **Confidence threshold justification with healthcare examples**: `blood_grp_cd` 'AP' - why this is genuinely ambiguous and why 0.80 threshold is conservative for clinical data
-- **Dosage text handling**: `dur_days` and `dosage_txt` free text fields flagged as requiring clinical SME review, not just AI mapping
-- **Why Mermaid for lineage**: portable, renders natively in GitHub markdown, no external tools or licenses required, suitable for audit documentation
-- **Human override examples**: document 2-3 realistic examples from the healthcare schema (blood group codes, appointment priority, claim status)
+- **Sensitive data section**: added field-level classification (patient PII: `first_name`/`last_name`/`dob`; clinical: `pat_st_cd`/`blood_grp_cd`/`med_cd`/`dosage_txt`/`tst_cd`/`rslt_txt`; insurance/financial: `ins_prvdr_cd`/`ins_clm_st`/`bill_amt`/`pay_mthd_cd`) plus a description of the actual masking/minimization approach `agents/ai_mapper.py` already uses (column-level metadata + capped samples, never joined rows) and what a production deployment would still need to add.
+- **Confidence threshold justification**: `blood_grp_cd` example added under Confidence Threshold — why pattern-matchable codes without a lookup table still warrant sub-0.80 confidence given the patient-safety-adjacent stakes.
+- **Dosage text handling**: new "Medication and Free-Text Clinical Fields" section — flags `dosage_txt`/`dur_days` for clinical SME review specifically, not generic human review, and notes the platform doesn't yet distinguish reviewer qualification (added to Future Extensions).
+- **Why Mermaid for lineage**: new section under Trade-off, explaining the portability rationale and when a dedicated lineage backend would be worth the switch.
+- **Human override examples**: three realistic examples added under Human-in-the-Loop (`blood_grp_cd`, `pri_lvl`, `ins_clm_st`), each with a plausible override note.
 
 ---
 
