@@ -1,0 +1,380 @@
+# FDE Capstone Plan - AI-Assisted Legacy Data Migration
+
+## Stack Decisions
+
+- Source: PostgreSQL (Docker) - free, easy local setup
+- Target: Snowflake (30-day trial, $400 credits)
+- Domain: Healthcare (Clinical Operations)
+- Base: Existing zip project - expand, don't rebuild
+- Standout Feature: Auto-generated data lineage visualization (Mermaid diagrams)
+- LLM: Anthropic Claude (via LangChain + langchain-anthropic)
+- Primary dev tool: Claude Code CLI
+
+## Time Budget (4.5-5 hours)
+
+Since the base project already has the LangGraph orchestrator, all 7 nodes, audit logger, settings, and agent scaffolding in place, the work is additive - not from scratch.
+
+| Phase | Time | What gets done | Base status |
+|-------|------|----------------|-------------|
+| Phase 1 - Schema expansion + seed data | 40 min | Expand 5-table schema to 8 tables, write seed script (10k+ rows) | init_db.sql exists but minimal, no seed script |
+| Phase 2 - LLM swap + LangFuse | 25 min | Swap OpenAI to Anthropic in all 3 agents, wire LangFuse callbacks | Agents exist, LLM hardcoded to OpenAI, LangFuse undone |
+| Phase 3 - Great Expectations | 35 min | Implement actual GX suites for all 3 checkpoints | README placeholder only |
+| Phase 4 - dbt models | 20 min | Replace stub SQL with real row count, null rate, FK integrity models | Single stub SELECT exists |
+| Phase 5 - Lineage visualization | 30 min | Build lineage_generator.py, Mermaid output, color-coded by confidence | Entirely missing |
+| Phase 6 - executor type mapping | 15 min | Add source-to-Snowflake type mapping (not all VARCHAR) | Currently loads everything as VARCHAR |
+| Phase 7 - Documentation update | 25 min | Update README + DECISIONS.md for healthcare domain, add lineage section | Exists but wholesale/generic references |
+
+Total: ~3 hrs 10 min (leaves buffer for testing + unexpected issues)
+
+---
+
+## What the Base Project Already Has (Do Not Rebuild)
+
+These are solid and should be used as-is:
+
+- `workflow/langgraph_orchestrator.py` - All 7 nodes wired, real LangGraph `interrupt()` for human review gate, state schema, edge routing
+- `audit/audit_logger.py` - SHA-256 hash-chained append-only logger, thread-safe
+- `agents/schema_profiler.py` - Full SQLAlchemy reflection, null rates, cardinality, value distribution, FK graph
+- `agents/rule_generator.py` - TransformationRule Pydantic model, pre-execution confidence validation
+- `agents/doc_generator.py` - LangChain doc generation, writes target data dictionary
+- `config/settings.py` - Clean dataclass-based settings from .env
+- `migration/executor.py` - Snowflake load with tenacity retry + exponential backoff
+- `validation/validator.py` - Source baseline + reconciliation report structure
+- `docker-compose.yml` - PostgreSQL container setup
+- `audit/migration_audit_log.json` - Initialized and ready
+- `tests/test_confidence_gate.py` - Basic gate logic tests
+- `data/example_*.json` - Example rule and mapping shapes
+
+---
+
+## Phase 1 - Schema Expansion + Seed Data (40 min)
+
+### 1.1 Expand init_db.sql
+
+Keep the existing 5 tables. Add 3 more to reach 8 total, increasing clinical complexity and giving the AI mapper more varied ambiguity to work with.
+
+**Existing tables (keep, add columns):**
+
+| Table | Additions |
+|-------|-----------|
+| `departments` | Add `dept_typ_cd` (VARCHAR(3): 'IPD', 'OPD', 'ICU', 'ER', 'SRG') - undocumented |
+| `patient_records` | Add `dob` as VARCHAR (legacy stored as string 'DD-MM-YYYY'), `blood_grp_cd` (VARCHAR(3): 'AP', 'AN', 'BP', 'BN', 'OP', 'ON', 'ABP', 'ABN'), `gndr_cd` (VARCHAR(1): 'M', 'F', 'U'), `ins_prvdr_cd` (VARCHAR(5): insurer codes, no lookup) |
+| `doctors` | Add `spec_cd` (VARCHAR(5): specialization codes 'CARD', 'ORTH', 'NEUR', 'PEDS', 'ONCO'), `qlf_cd` (VARCHAR(10): qualification codes 'MBBS', 'MD', 'MS', 'DM', 'MCH') |
+| `appointments` | Add `appt_typ_cd` (VARCHAR(3): 'NEW', 'FLW', 'EMR', 'REV'), `cncl_rsn` (VARCHAR free text, often NULL), `pri_lvl` (INT: 1-5, undocumented priority) |
+| `billing` | Add `pay_mthd_cd` (VARCHAR(3): 'CSH', 'INS', 'CRD', 'UPI'), `ins_clm_st` (VARCHAR(2): 'PN', 'AP', 'RJ', 'PP'), `disc_pct` (NUMERIC: discount %, nullable) |
+
+**New tables (add 3):**
+
+| Table | Purpose | Legacy quirks |
+|-------|---------|---------------|
+| `med_records` | Medication prescriptions | `med_cd` (drug codes, no lookup), `dosage_txt` (free text: '1x2', 'BD', 'TDS', 'SOS'), `rte_cd` (route: 'OR', 'IV', 'IM', 'SC'), `dur_days` as VARCHAR |
+| `lab_orders` | Lab test orders | `tst_cd` (test codes: 'CBC', 'LFT', 'KFT', 'TSH', 'XRAY'), `tst_st_cd` (VARCHAR(2): 'OR', 'PR', 'CM', 'CN'), `rslt_txt` (free text results, often NULL), `urgcy_cd` (VARCHAR: 'ROU', 'URG', 'STT') |
+| `ward_alloc` | Ward/bed allocation | `ward_cd` (VARCHAR: 'G1', 'G2', 'ICU', 'PVTW', 'SRG'), `bed_no` (VARCHAR: '101A', '202B' - alphanumeric), `alloc_st` (VARCHAR(1): 'A', 'V', 'M', 'B'), `alloc_dt` as VARCHAR |
+
+**Total: 8 tables, 30+ columns, most with undocumented codes.**
+
+Key ambiguities the AI mapper will hit (drives human review gate):
+- `blood_grp_cd`: 'AP' could be A-Positive or something else entirely - confidence will be low
+- `appt_st` (INT in existing schema, no meaning documented): 1/2/3/4/5 - no context
+- `ins_clm_st`: 'PP' could be Partially Paid or Pre-Processing - requires domain review
+- `dosage_txt` free text ('BD', 'TDS', 'SOS'): pharmaceutical abbreviations, AI will flag these
+- `alloc_st`: single char codes with no table comment
+- `pri_lvl` INT: is 1 highest priority or lowest? - genuinely ambiguous
+
+### 1.2 Seed Script
+
+New file: `seed/seed_db.py`
+
+Row targets:
+- `patient_records`: 12,000 rows
+- `appointments`: 15,000 rows (multiple per patient)
+- `billing`: 13,000 rows
+- `med_records`: 20,000 rows
+- `lab_orders`: 18,000 rows
+- `departments`: 12 rows (reference data)
+- `doctors`: 150 rows
+- `ward_alloc`: 8,000 rows
+
+Use `Faker` for names, dates. Use `random.choice` for all code columns. Inject deliberate data quality issues:
+- 3-5% NULL rate on nullable FKs
+- ~2% NULL on `pat_st_cd`, `appt_st`
+- `dob` stored inconsistently: mix of 'DD-MM-YYYY' and 'YYYY-MM-DD' in same column (simulates organic legacy growth)
+- `dur_days` in `med_records`: mix of '7', '7 days', 'one week' (genuinely messy)
+
+---
+
+## Phase 2 - LLM Swap + LangFuse (25 min)
+
+### 2.1 Swap OpenAI to Anthropic
+
+Three files need changes: `agents/ai_mapper.py`, `agents/rule_generator.py`, `agents/doc_generator.py`
+
+Change in each:
+```python
+# Remove
+from langchain_openai import ChatOpenAI
+llm = ChatOpenAI(api_key=settings.llm_api_key, model=settings.llm_model, temperature=0)
+
+# Replace with
+from langchain_anthropic import ChatAnthropic
+llm = ChatAnthropic(api_key=settings.llm_api_key, model=settings.llm_model, temperature=0)
+```
+
+Update `requirements.txt`: remove `langchain-openai`, add `langchain-anthropic>=0.3`
+
+Update `.env.example`:
+```
+LLM_API_KEY=your_anthropic_api_key_here
+LLM_MODEL=claude-sonnet-4-6
+```
+
+### 2.2 Wire LangFuse
+
+LangFuse has a native LangChain callback handler - this is the lowest-effort path.
+
+In each agent, add the callback at LLM initialization:
+```python
+from langfuse.callback import CallbackHandler
+langfuse_handler = CallbackHandler(
+    public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
+    secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
+    host=os.getenv("LANGFUSE_HOST"),
+    trace_name=f"ai_mapper_{run_id}",
+    tags=["migration", "healthcare"]
+)
+llm = ChatAnthropic(...).with_config({"callbacks": [langfuse_handler]})
+```
+
+Human review decisions get logged as LangFuse scores via `langfuse_handler.langfuse.score(...)` in `human_review_gate` node - attaches override decisions to the relevant trace.
+
+---
+
+## Phase 3 - Great Expectations (35 min)
+
+Replace the `validation/great_expectations/README.md` placeholder with actual implementation.
+
+New file: `validation/great_expectations/gx_checkpoints.py`
+
+Use GX's in-memory/pandas approach (no YAML config files needed - faster to build):
+
+```python
+import great_expectations as gx
+from great_expectations.core.batch import RuntimeBatchRequest
+
+def run_source_baseline(profile: dict) -> dict: ...
+def run_post_extraction(extracted_data: dict) -> dict: ...
+def run_post_load(profile: dict, run_id: str) -> dict: ...
+```
+
+**Checkpoint 1 - Source baseline expectations per table:**
+- `expect_table_row_count_to_be_between` (min: seeded count * 0.95)
+- `expect_column_values_to_not_be_null` for PK columns
+- `expect_column_values_to_be_in_set` for known code columns (pat_st_cd: ['A','D','I','S'], appt_typ_cd: ['NEW','FLW','EMR','REV'])
+- `expect_column_values_to_be_unique` for PK columns
+
+**Checkpoint 2 - Post-extraction:**
+- Row counts from extraction match source baseline counts
+- No columns dropped during extraction
+
+**Checkpoint 3 - Post-load (Snowflake):**
+- Target row counts match source
+- Null rates within 2% tolerance of source baseline
+- Mapped status code columns contain only valid target values (e.g., patient_status in ['Active', 'Discharged', 'Inactive', 'Suspended'])
+
+All three checkpoints write results to `data/gx_results_{checkpoint}.json`. A failure at any checkpoint raises an exception that blocks the pipeline.
+
+---
+
+## Phase 4 - dbt Models (20 min)
+
+Replace the stub `migration_reconciliation.sql` with real models.
+
+New structure:
+```
+validation/dbt_models/
+├── dbt_project.yml
+├── profiles.yml
+└── models/
+    ├── row_count_reconciliation.sql
+    ├── null_rate_check.sql
+    └── fk_integrity_check.sql
+```
+
+**row_count_reconciliation.sql:**
+```sql
+-- Compares source vs target row counts per migrated table
+-- Source counts come from reconciliation_report.json (loaded as a seed)
+-- Target counts queried live from Snowflake staging schema
+SELECT
+    table_name,
+    source_row_count,
+    target_row_count,
+    source_row_count - target_row_count AS row_delta,
+    CASE WHEN source_row_count = target_row_count THEN 'PASS' ELSE 'FAIL' END AS status
+FROM {{ ref('migration_counts_seed') }}
+```
+
+**null_rate_check.sql:**
+Compares null rates per column between source profile JSON and target. Flags any column where null rate delta exceeds 2%.
+
+**fk_integrity_check.sql:**
+Verifies FK relationships are intact in Snowflake - e.g., every `appointments.pat_id` exists in `patient_records.pat_id` in the target schema.
+
+`schema.yml` gets proper column-level tests: `not_null`, `accepted_values`, `relationships`.
+
+---
+
+## Phase 5 - Lineage Visualization (30 min) - STANDOUT
+
+New file: `lineage/lineage_generator.py`
+
+This runs after `rule_generator` completes and reads from `data/approved_mappings.json` + `data/transformation_rules.json`. No dependency on live DB or LLM.
+
+**What it builds:**
+
+A Mermaid `graph LR` diagram grouped by source table, with three columns:
+- Left subgraph: source table + column (with original data type)
+- Middle node: transformation logic summary (CASE / CAST / direct map)
+- Right subgraph: target table + column (with mapped type)
+
+**Color coding by confidence:**
+- `fill:#00d4aa` (green): confidence >= 0.90, auto-approved
+- `fill:#f59e0b` (amber): confidence 0.80-0.89, passed threshold
+- `fill:#ef4444` (red): confidence < 0.80, required human review - shows `(reviewed)` marker
+
+**Healthcare-specific example output (partial):**
+```mermaid
+graph LR
+    subgraph src_patient_records["Source: patient_records"]
+        S1["pat_st_cd VARCHAR(2)"]
+        S2["dob VARCHAR"]
+        S3["blood_grp_cd VARCHAR(3)"]
+        S4["gndr_cd VARCHAR(1)"]
+    end
+
+    subgraph transforms["Transformations"]
+        T1["CASE: A→Active, D→Discharged..."]
+        T2["CAST + reformat to DATE"]
+        T3["CASE: AP→A+, AN→A-..."]
+        T4["CASE: M→Male, F→Female, U→Unknown"]
+    end
+
+    subgraph tgt_patient_records["Target: patient_records"]
+        TG1["patient_status VARCHAR"]
+        TG2["date_of_birth DATE"]
+        TG3["blood_group VARCHAR"]
+        TG4["gender VARCHAR"]
+    end
+
+    S1 -->|"conf: 0.82 ✓ reviewed"| T1 --> TG1
+    S2 -->|"conf: 0.91"| T2 --> TG2
+    S3 -->|"conf: 0.68 ✓ reviewed"| T3 --> TG3
+    S4 -->|"conf: 0.88"| T4 --> TG4
+
+    style T1 fill:#f59e0b
+    style T2 fill:#00d4aa
+    style T3 fill:#ef4444
+    style T4 fill:#f59e0b
+```
+
+Output written to `docs/lineage.md`. One diagram per source table, all in the same file with H2 headers per table.
+
+**Why this matters for healthcare:** Blood group codes, clinical status codes, medication routes - these are exactly the columns where a reader looking at the diagram can immediately see which transformations were human-validated versus auto-approved. That's the story the evaluator needs to see.
+
+---
+
+## Phase 6 - Executor Type Mapping (15 min)
+
+Current `migration/executor.py` creates all Snowflake columns as `VARCHAR`. Fix this with a basic SQLAlchemy-to-Snowflake type map:
+
+```python
+TYPE_MAP = {
+    "BIGINT": "NUMBER(38,0)",
+    "INTEGER": "NUMBER(10,0)",
+    "NUMERIC": "NUMBER(18,4)",
+    "TIMESTAMP": "TIMESTAMP_NTZ",
+    "DATE": "DATE",
+    "BOOLEAN": "BOOLEAN",
+    "TEXT": "VARCHAR(16777216)",
+    "VARCHAR": "VARCHAR({length})",
+}
+```
+
+This makes the dbt FK integrity and null rate checks actually meaningful, since column types are preserved rather than everything being VARCHAR.
+
+---
+
+## Phase 7 - Documentation Update (25 min)
+
+### README.md - sections to update:
+
+- Project Overview: change domain references from generic to healthcare clinical operations
+- Architecture: add lineage visualization step after doc_generator
+- Run section: add `python -m lineage.lineage_generator` as a post-pipeline step
+- Add section: "Lineage Diagram" - where to find docs/lineage.md and how to render it in GitHub/VS Code
+- Known Limitations: add healthcare-specific notes (clinical code ambiguity, medication abbreviation interpretation)
+
+### DECISIONS.md - additions for healthcare:
+
+- **Sensitive data section**: patient PII (first_name, last_name, dob), clinical data (pat_st_cd, blood_grp_cd, med_cd), insurance data (ins_prvdr_cd, ins_clm_st) - all flagged, masking/minimization approach described
+- **Confidence threshold justification with healthcare examples**: `blood_grp_cd` 'AP' - why this is genuinely ambiguous and why 0.80 threshold is conservative for clinical data
+- **Dosage text handling**: `dur_days` and `dosage_txt` free text fields flagged as requiring clinical SME review, not just AI mapping
+- **Why Mermaid for lineage**: portable, renders natively in GitHub markdown, no external tools or licenses required, suitable for audit documentation
+- **Human override examples**: document 2-3 realistic examples from the healthcare schema (blood group codes, appointment priority, claim status)
+
+---
+
+## Execution Order with Claude Code
+
+Build in this sequence to minimize blocked time:
+
+1. `scripts/init_db.sql` - schema expansion (run and verify in Docker first)
+2. `seed/seed_db.py` - seed data (run, confirm row counts)
+3. `agents/ai_mapper.py` + `agents/rule_generator.py` + `agents/doc_generator.py` - LLM swap to Anthropic + LangFuse callbacks
+4. `validation/great_expectations/gx_checkpoints.py` - GX suites
+5. `validation/dbt_models/` - real SQL models
+6. `lineage/lineage_generator.py` - Mermaid generator
+7. `migration/executor.py` - type mapping fix
+8. README.md + DECISIONS.md - documentation pass
+
+Key Claude Code prompts:
+- "Expand this PostgreSQL healthcare schema SQL to add these 3 tables and column additions, preserving existing CREATE TABLE statements"
+- "Write a Python seed script using Faker to populate this schema with realistic healthcare data, injecting these specific data quality issues"
+- "Swap langchain-openai to langchain-anthropic in these 3 agent files and add LangFuse callback handler"
+- "Implement Great Expectations suites for these 3 checkpoints using the in-memory/pandas approach, no YAML"
+- "Build a Mermaid lineage diagram generator that reads approved_mappings.json and transformation_rules.json"
+
+---
+
+## Gap Summary vs Capstone Rubric
+
+| Requirement | Base project | After this plan |
+|-------------|-------------|-----------------|
+| 7 LangGraph nodes | Done | Done |
+| Human-in-the-loop gate | Done (real interrupt) | Done |
+| LangFuse instrumentation | Missing | Added Phase 2 |
+| Great Expectations (3 checkpoints) | README stub | Added Phase 3 |
+| dbt post-migration models | Single stub SQL | Added Phase 4 |
+| 10,000+ rows seed data | 1 demo row | Added Phase 1 |
+| Healthcare schema with complexity | 5 minimal tables | Expanded Phase 1 |
+| Anthropic/Claude as LLM | Hardcoded OpenAI | Fixed Phase 2 |
+| Lineage visualization | Missing | Added Phase 5 |
+| Correct Snowflake type mapping | All VARCHAR | Fixed Phase 6 |
+| README all 8 sections | Mostly there | Updated Phase 7 |
+| DECISIONS.md with PII/domain notes | Generic | Updated Phase 7 |
+| .env.example | Exists | Minor update |
+| audit_log.json | Exists + hash-chained | No change |
+| architecture.png | Exists | No change |
+
+---
+
+## Risk Mitigation
+
+| Risk | Mitigation |
+|------|------------|
+| Snowflake trial setup takes longer than expected | BigQuery free tier as fallback - executor.py already has the Snowflake engine isolated in one function |
+| LangFuse callback not firing correctly | Test with a single ai_mapper call before running full pipeline |
+| GX version API differences | Pin to `great-expectations==0.18.x`, use in-memory approach to avoid context/config overhead |
+| Seed script slow for 80k+ rows | Use bulk inserts with `executemany`, batch size 500 |
+| `blood_grp_cd` and similar codes all get high confidence | Prompt engineering in ai_mapper system prompt - explicitly instruct low confidence for single/dual char codes without accompanying lookup tables |
+| Time overrun | Phase 6 (type mapping) is the lowest priority - skip if needed, everything else passes without it |

@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: legacy_migration_postgres
+    environment:
+      POSTGRES_USER: legacy_user
+      POSTGRES_PASSWORD: legacy_password
+      POSTGRES_DB: legacy_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+volumes:
+  postgres_data:

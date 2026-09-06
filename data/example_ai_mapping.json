@@ -1,0 +1,18 @@
+[
+  {
+    "source_table": "patient_records",
+    "source_column": "pat_st_cd",
+    "target_table": "patient_records",
+    "target_column": "patient_status",
+    "inferred_meaning": "Patient lifecycle status code",
+    "transformation_rule": "CASE WHEN src = 'A' THEN 'Active' WHEN src = 'D' THEN 'Discharged' ELSE NULL END",
+    "null_handling": "Map NULL to NULL; flag unexpected codes.",
+    "edge_cases": [
+      "Trim whitespace",
+      "Unknown codes require human review"
+    ],
+    "confidence": 0.84,
+    "reasoning": "A and D have contextual evidence; ambiguous codes require domain confirmation.",
+    "prompt_id": "example-prompt-001"
+  }
+]

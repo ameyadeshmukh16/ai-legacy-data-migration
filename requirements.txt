@@ -1,0 +1,15 @@
+python-dotenv>=1.0
+SQLAlchemy>=2.0
+psycopg2-binary>=2.9
+PyMySQL>=1.1
+snowflake-connector-python>=3.10
+snowflake-sqlalchemy>=1.5
+langchain>=0.3
+langgraph>=0.2
+langchain-openai>=0.3
+langfuse>=2.50
+great-expectations>=0.18
+pandas>=2.0
+pydantic>=2.0
+tenacity>=8.2
+Faker>=25.0

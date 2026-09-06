@@ -1,0 +1,8 @@
+version: 2
+models:
+  - name: migration_reconciliation
+    description: "Post-migration reconciliation model."
+    columns:
+      - name: table_name
+        tests:
+          - not_null

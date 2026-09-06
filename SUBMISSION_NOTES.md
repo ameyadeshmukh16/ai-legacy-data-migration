@@ -1,0 +1,2 @@
+# Submission Notes
+1. Enter your actual FDE participant ID in the portal. 2. Never include `.env` or credentials. 3. Configure evaluator LLM/Snowflake/LangFuse credentials. 4. Ensure the assessment source has 5+ tables and 10,000+ rows per primary table. 5. Execute one complete migration. 6. Capture human-review pause/resume evidence. 7. Capture LangFuse traces. 8. Verify three validation checkpoints, dbt tests, reconciliation report, audit log and target data dictionary.

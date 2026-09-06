@@ -1,0 +1,14 @@
+{
+  "source_column": "pat_st_cd",
+  "target_column": "patient_status",
+  "logic": "CASE WHEN src = 'A' THEN 'Active' WHEN src = 'D' THEN 'Discharged' ELSE NULL END",
+  "null_handling": "Map to NULL; flag in reconciliation report.",
+  "edge_cases": [
+    "Unknown codes default to NULL",
+    "Trim whitespace before mapping"
+  ],
+  "confidence": 0.84,
+  "prompt_id": "example-prompt-001",
+  "human_reviewed": false,
+  "override_note": null
+}
