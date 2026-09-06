@@ -13,6 +13,7 @@ from agents.rule_generator import generate_rules
 from agents.doc_generator import generate_documentation
 from validation.validator import run_validation
 from migration.executor import execute_migration
+from lineage.lineage_generator import generate_lineage
 
 class MigrationState(TypedDict,total=False):
     run_id:str
@@ -57,7 +58,9 @@ def human_review_gate(s):
     return {"approved_mappings":approved}
 
 def rule_generator(s):
-    r=generate_rules(s["approved_mappings"],s["run_id"]); Path("data/transformation_rules.json").write_text(json.dumps(r,indent=2),encoding="utf-8"); return {"rules":r}
+    r=generate_rules(s["approved_mappings"],s["run_id"]); Path("data/transformation_rules.json").write_text(json.dumps(r,indent=2),encoding="utf-8")
+    generate_lineage(s["approved_mappings"],r,s["schema_profile"])
+    return {"rules":r}
 
 def migration_executor(s):
     execute_migration(s["schema_profile"],s["rules"],s["run_id"]); return {"status":"loaded"}

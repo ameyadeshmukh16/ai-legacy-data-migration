@@ -20,7 +20,7 @@ Since the base project already has the LangGraph orchestrator, all 7 nodes, audi
 | Phase 2 - LLM swap + LangFuse | 25 min | LLM swap (OpenAI to Gemini via provider factory) and LangFuse callback/scoring wiring both done | Complete |
 | Phase 3 - Great Expectations | 35 min | GX suites for all 3 checkpoints implemented (GX 1.x API); also fixed a pre-existing Snowflake schema-qualification bug and slow row-by-row insert in executor.py | Complete |
 | Phase 4 - dbt models | 20 min | Real row count, null rate, and FK integrity models built and verified against live Snowflake; added missing dbt-core/dbt-snowflake deps | Complete |
-| Phase 5 - Lineage visualization | 30 min | Build lineage_generator.py, Mermaid output, color-coded by confidence | Entirely missing |
+| Phase 5 - Lineage visualization | 30 min | lineage_generator.py built, wired into rule_generator, Mermaid diagrams verified rendering correctly | Complete |
 | Phase 6 - executor type mapping | 15 min | Add source-to-Snowflake type mapping (not all VARCHAR) | Currently loads everything as VARCHAR |
 | Phase 7 - Documentation update | 25 min | Update README + DECISIONS.md for healthcare domain, add lineage section | Exists but wholesale/generic references |
 
@@ -248,11 +248,11 @@ Verified end-to-end: `dbt debug` (connects), `dbt seed`, `dbt run` (all 3 models
 
 ---
 
-## Phase 5 - Lineage Visualization (30 min) - STANDOUT
+## Phase 5 - Lineage Visualization (30 min, done) - STANDOUT
 
-New file: `lineage/lineage_generator.py`
+New file: `lineage/lineage_generator.py`, called from inside `rule_generator` in `workflow/langgraph_orchestrator.py` right after `transformation_rules.json` is written — README's "Mandatory Nodes" list is exactly 7 nodes, so this is wired as a side effect of the existing `rule_generator` node rather than an 8th graph node. Reads `approved_mappings` + `rules` + `schema_profile` already in orchestrator state (matching data/approved_mappings.json + data/transformation_rules.json's shapes). No dependency on live DB or LLM — verified by generating diagrams from realistic synthetic fixtures alone.
 
-This runs after `rule_generator` completes and reads from `data/approved_mappings.json` + `data/transformation_rules.json`. No dependency on live DB or LLM.
+Since `transformation_rules.json` (from `rule_generator`) only carries `source_column`/`target_column`, not table names, the generator joins it against `approved_mappings.json` (which has both table names) on `(source_column, target_column)` to know which source table each rule belongs to, and pulls the original source data type from `schema_profile.json`.
 
 **What it builds:**
 
@@ -301,7 +301,11 @@ graph LR
     style T4 fill:#f59e0b
 ```
 
-Output written to `docs/lineage.md`. One diagram per source table, all in the same file with H2 headers per table.
+Output written to `docs/lineage.md`. One diagram per source table, all in the same file with H2 headers per table. The reviewed marker only appears when a mapping actually passed through `human_review_gate` (checked via `override_note` not starting with `"Auto-cleared"`) — auto-cleared high-confidence mappings above the threshold don't get a false "reviewed" label just because `human_reviewed=True` is set on every approved mapping.
+
+The transformation summary extracts `WHEN x = 'A' THEN 'B'` pairs out of generated CASE-statement logic into the compact `A→B, C→D` form shown above (real LLM-generated SQL is often much longer than the plan's example), falling back to the raw logic (length-capped) for CAST/other transformations, and to `"direct map"` when no rule matches.
+
+`docs/lineage.md` is committed to the repo as a worked example (using realistic fixtures covering the plan's own healthcare ambiguity examples — blood group codes, appointment priority, etc.) — visible without running the pipeline, and regenerated for real on every actual migration run.
 
 **Why this matters for healthcare:** Blood group codes, clinical status codes, medication routes - these are exactly the columns where a reader looking at the diagram can immediately see which transformations were human-validated versus auto-approved. That's the story the evaluator needs to see.
 
