@@ -5,7 +5,7 @@
     "target_table": "patient_records",
     "target_column": "patient_status",
     "inferred_meaning": "Patient lifecycle status code",
-    "transformation_rule": "CASE WHEN src = 'A' THEN 'Active' WHEN src = 'D' THEN 'Discharged' ELSE NULL END",
+    "transformation_rule": "CASE WHEN pat_st_cd = 'A' THEN 'Active' WHEN pat_st_cd = 'D' THEN 'Discharged' ELSE NULL END",
     "null_handling": "Map NULL to NULL; flag unexpected codes.",
     "edge_cases": [
       "Trim whitespace",

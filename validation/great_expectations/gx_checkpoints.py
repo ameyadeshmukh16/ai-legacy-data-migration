@@ -24,6 +24,16 @@ KNOWN_VALUE_SETS = {
     "alloc_st": ["A", "V", "M", "B"],
 }
 
+# Target-side value sets for known post-transformation columns. Populated as rules
+# are authored/observed producing these target column names; a rule-driven target
+# column not listed here simply skips the domain check rather than failing it.
+TARGET_VALUE_SETS = {
+    "patient_status": ["Active", "Discharged", "Inactive", "Suspended"],
+    "gender": ["Male", "Female", "Unknown"],
+    "blood_group": ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"],
+    "appointment_type": ["New", "Follow-up", "Emergency", "Review"],
+}
+
 _PK_COLUMN = {
     "departments": "dept_id", "patient_records": "pat_id", "doctors": "doctor_id",
     "appointments": "appt_id", "billing": "bill_id", "med_records": "med_record_id",
@@ -117,15 +127,20 @@ def run_post_extraction(extracted_data, baseline_report):
     return report
 
 
-def run_post_load(profile, run_id, baseline_report):
+def run_post_load(profile, run_id, baseline_report, rules):
     from migration.executor import _snowflake_engine, qualified_target_table
     target = _snowflake_engine()
     report = {"checkpoint": "post_load", "tables": {}, "passed": True}
+    rules_by_table = {}
+    for r in rules:
+        rules_by_table.setdefault(r["source_table"], []).append(r)
+
     for table, meta in profile["tables"].items():
-        columns = [c["name"] for c in meta["columns"]]
+        table_rules = rules_by_table.get(table, [])
+        target_columns = [r["target_column"] for r in table_rules]
         qualified_table = qualified_target_table(table, run_id)
         try:
-            cols = ", ".join(f'"{c}"' for c in columns)
+            cols = ", ".join(f'"{c}"' for c in target_columns)
             with target.connect() as conn:
                 df = pd.read_sql(text(f'SELECT {cols} FROM {qualified_table}'), conn)
         except Exception as e:
@@ -135,22 +150,23 @@ def run_post_load(profile, run_id, baseline_report):
         baseline = baseline_report["tables"].get(table, {})
         baseline_count = baseline.get("row_count")
         expectations = [gxe.ExpectTableRowCountToEqual(value=baseline_count)] if baseline_count is not None else []
-        for col, allowed in KNOWN_VALUE_SETS.items():
+        for col, allowed in TARGET_VALUE_SETS.items():
             if col in df.columns:
                 expectations.append(gxe.ExpectColumnValuesToBeInSet(column=col, value_set=allowed, mostly=0.98))
         passed, results = _validate(df, table, expectations) if expectations else (True, [])
         null_rate_ok = True
         null_rate_details = {}
-        for col in columns:
-            if col not in df.columns:
+        for r in table_rules:
+            target_col = r["target_column"]
+            if target_col not in df.columns:
                 continue
-            target_null_rate = df[col].isna().mean()
-            source_col_meta = next((c for c in profile["tables"][table]["columns"] if c["name"] == col), None)
+            target_null_rate = df[target_col].isna().mean()
+            source_col_meta = next((c for c in meta["columns"] if c["name"] == r["source_column"]), None)
             source_null_rate = source_col_meta["null_rate"] if source_col_meta else None
             if source_null_rate is not None:
                 within_tolerance = abs(target_null_rate - source_null_rate) <= 0.02
                 null_rate_ok = null_rate_ok and within_tolerance
-                null_rate_details[col] = {"source": source_null_rate, "target": target_null_rate, "within_tolerance": within_tolerance}
+                null_rate_details[target_col] = {"source": source_null_rate, "target": target_null_rate, "within_tolerance": within_tolerance}
         table_passed = passed and null_rate_ok
         report["tables"][table] = {
             "row_count": len(df), "baseline_row_count": baseline_count,

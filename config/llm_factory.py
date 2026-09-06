@@ -12,4 +12,7 @@ def get_chat_llm(temperature=0):
     if settings.llm_provider == "openai":
         from langchain_openai import ChatOpenAI
         return ChatOpenAI(api_key=settings.llm_api_key,model=settings.llm_model,temperature=temperature)
+    if settings.llm_provider == "nvidia":
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(api_key=settings.llm_api_key,model=settings.llm_model,temperature=temperature,base_url="https://integrate.api.nvidia.com/v1",timeout=60)
     raise ValueError(f"Unsupported LLM_PROVIDER: {settings.llm_provider}")

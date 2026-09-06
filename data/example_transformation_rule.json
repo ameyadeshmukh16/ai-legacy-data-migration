@@ -1,7 +1,10 @@
 {
+  "source_table": "patient_records",
+  "target_table": "patient_records",
   "source_column": "pat_st_cd",
   "target_column": "patient_status",
-  "logic": "CASE WHEN src = 'A' THEN 'Active' WHEN src = 'D' THEN 'Discharged' ELSE NULL END",
+  "logic": "CASE WHEN pat_st_cd = 'A' THEN 'Active' WHEN pat_st_cd = 'D' THEN 'Discharged' ELSE NULL END",
+  "target_type": "STRING",
   "null_handling": "Map to NULL; flag in reconciliation report.",
   "edge_cases": [
     "Unknown codes default to NULL",

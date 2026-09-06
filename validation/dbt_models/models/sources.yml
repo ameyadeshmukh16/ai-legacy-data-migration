@@ -7,5 +7,8 @@ sources:
     quoting:
       identifier: true
     tables:
+      - name: "departments_{{ var('run_id', 'unset') | replace('-', '_') }}"
       - name: "patient_records_{{ var('run_id', 'unset') | replace('-', '_') }}"
+      - name: "doctors_{{ var('run_id', 'unset') | replace('-', '_') }}"
       - name: "appointments_{{ var('run_id', 'unset') | replace('-', '_') }}"
+      - name: "billing_{{ var('run_id', 'unset') | replace('-', '_') }}"
