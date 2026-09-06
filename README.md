@@ -15,23 +15,27 @@ schema_profiler (SQLAlchemy) -> Great Expectations: source baseline
         |
 ai_mapper (LangChain) -- one LLM call per column, proposes target name/type/transformation + confidence
         |
-human_review_gate (LangGraph interrupt, checkpointed) -- pauses only for mappings below CONFIDENCE_THRESHOLD
+human_review_gate (LangGraph interrupt, checkpointed) -- pauses only for mappings below CONFIDENCE_THRESHOLD;
+        |                auto-approved mappings are marked review_status=AUTO_APPROVED (human_reviewed=false);
+        |                human decisions carry reviewer_id/reviewer_role
         |
 rule_generator (LangChain) -> lineage_generator (Mermaid diagrams)
         |
-migration_executor -- builds a rule-driven SELECT per table (each rule's logic aliased to its
-        |                target_column), resolves Snowflake types from the rule's target_type hint,
-        |                loads to staging -> Great Expectations: post-extraction
+migration_executor -- per table: raw extract -> Great Expectations: post-extraction (raw rows, raw
+        |                column names, real no-columns-dropped check) -> apply approved rule logic ->
+        |                load to staging (Snowflake types from each rule's target_type hint)
         |
-validator -- Great Expectations: post-load -> reconciliation -> dbt seed/run/test
+validator -- Great Expectations: post-load -> reconciliation -> value-distribution reconciliation
+        |                -> dbt seed/run/test
         |
 doc_generator -> target data dictionary
 
-Cross-cutting: LangFuse traces/scores + hash-chained audit log
+Cross-cutting: LangFuse traces/scores + hash-chained audit log (run_started/run_completed/run_failed;
+failed runs roll back their run-scoped Snowflake tables)
 ```
 
 ## LLM Provider
-The LLM backend is abstracted behind `config/llm_factory.py`, selected via `LLM_PROVIDER` in `.env`. Supported providers: `groq` (default), `google_genai`, `nvidia`, `anthropic`, `openai` — switching is a config change (`LLM_PROVIDER`/`LLM_API_KEY`/`LLM_MODEL` in `.env`, plus installing the matching `langchain-*` package if not already present), never an agent code change.
+The LLM backend is abstracted behind `config/llm_factory.py`, selected via `LLM_PROVIDER` in `.env`. Supported providers: `groq` (default), `google_genai`, `nvidia`, `openai`. `groq`/`nvidia`/`openai` all run through `langchain-openai` (declared in `requirements.txt`); `google_genai` uses `langchain-google-genai`. Switching is a config change (`LLM_PROVIDER`/`LLM_API_KEY`/`LLM_MODEL` in `.env`), never an agent code change.
 
 Groq (`openai/gpt-oss-120b`) is the current default: it was the most reliable option tested for this project's structured-output workload (one JSON-schema-constrained LLM call per source column). Notes from evaluating alternatives during development:
 - **Google Gemini** (`gemini-flash-latest`): works, but the free tier is capped at 20 requests/day on some models — easily exhausted by a single multi-table run (~35+ LLM calls).
@@ -86,20 +90,19 @@ dbt test --project-dir validation/dbt_models --profiles-dir validation/dbt_model
 ```
 
 ## Human Review
-Low-confidence mappings are written to `data/human_review_queue.json`. Decisions are `approve`, `reject`, or `override`. A low-confidence approval/override requires a non-empty `override_note`. Rejection blocks migration.
+Low-confidence mappings are written to `data/human_review_queue.json`. Each decision is a JSON object with `mapping_index`, `decision` (`approve`/`reject`/`override`), `override_note`, `reviewer_id`, and `reviewer_role` — `reviewer_id`/`reviewer_role` are required on every decision, and a low-confidence approval/override also requires a non-empty `override_note`. Rejection blocks migration.
+
+Approved mappings carry an explicit `review_status`:
+- `AUTO_APPROVED` — confidence ≥ threshold, no human looked at it (`human_reviewed=false`).
+- `HUMAN_APPROVED` — a reviewer approved it (`human_reviewed=true`, with `reviewer_id`/`reviewer_role`).
+
+Only `HUMAN_APPROVED` satisfies the low-confidence execution gate in `agents/rule_generator.validate_rules_before_execution`.
 
 ## Rollback
-1. Stop the run.
-2. Inspect `data/reconciliation_report.json`.
-3. Inspect `audit/migration_audit_log.json`.
-4. Do not publish staging data.
-5. Drop run-specific Snowflake staging tables.
-6. Correct mapping/rule issues and resume/re-run from the appropriate checkpoint.
-
-The source is read-only.
+On any pipeline failure (a GX checkpoint, reconciliation, distribution reconciliation, or dbt test), `workflow/langgraph_orchestrator.run_migration` writes a `run_failed` audit event and calls `migration.executor.rollback_run`, which drops every `<table>_<run_id>` staging table this run created in Snowflake, then writes `run_rolled_back`. The source is read-only and never touched. To recover: inspect `data/reconciliation_report.json` + `audit/migration_audit_log.json`, correct the mapping/rule issue, and re-run.
 
 ## AI Decision Audit
-Audit log: `audit/migration_audit_log.json`. Each event records run ID, event ID, timestamp, event type, prompt ID where applicable, confidence/decision metadata and SHA-256 hash chaining.
+Audit log: `audit/migration_audit_log.json`. Each event records run ID, event ID, timestamp, event type, prompt ID where applicable, confidence/decision metadata and SHA-256 hash chaining. Human-review events additionally record `reviewer_id`/`reviewer_role`. Run lifecycle is bracketed by `run_started` … `run_completed` (or `run_failed` + `run_rolled_back`).
 
 LangFuse traces should be filtered by the migration `run_id`.
 
@@ -114,12 +117,14 @@ GitHub and VS Code (with a Markdown preview extension, or natively in recent ver
 ## Validation
 Required checkpoints (implemented in `validation/great_expectations/gx_checkpoints.py`, using the Great Expectations 1.x ephemeral-context API), all wired directly into `workflow/langgraph_orchestrator.py` — not standalone scripts:
 1. **Source baseline** (`schema_profiler` node) — row count vs. seeded target, PK not-null/uniqueness, known status-code domains (`pat_st_cd`, `blood_grp_cd`, etc. — see `KNOWN_VALUE_SETS`) checked in-set. Runs before any LLM calls, so a broken source fails fast without spending mapping/rule-generation cost.
-2. **Post-extraction** (`migration_executor`, after the rule-driven load per table) — extracted/transformed row counts match the source baseline; no columns dropped.
+2. **Post-extraction** (`migration_executor`, per table, *before* transformation and load) — runs on the raw extracted rows under their raw source column names: row count matches the source baseline, and `no_columns_dropped` is a real set comparison of extracted columns vs. the profile's column list (no longer a hardcoded `True`).
 3. **Post-load** (`validator`, first thing it does) — Snowflake target row counts match baseline; null rates within 2% tolerance; **transformed** status-code domains valid (`TARGET_VALUE_SETS`, e.g. `patient_status` must be one of `Active`/`Discharged`/`Inactive`/`Suspended` — checked against the actual post-transformation values, not the raw source codes).
 
-Each checkpoint writes `data/gx_results_{checkpoint}.json` and raises `RuntimeError` on failure, halting the pipeline — verified directly: a deliberately mismatched extraction (wrong row count) correctly halts at post-extraction, and a deliberately invalid transformed value correctly fails post-load's domain check.
+Each checkpoint writes `data/gx_results_{checkpoint}.json` and raises `RuntimeError` on failure, halting the pipeline.
 
-`validation/validator.py` additionally builds `data/reconciliation_report.json` (source/target row counts, null rates, cardinality per column, keyed by source column name even though target stats are queried by the renamed `target_column`), which `validation/dbt_models/generate_seeds.py` turns into dbt seeds. The dbt project (`validation/dbt_models/`) then runs three models against Snowflake, also invoked directly from `validator` (via `validation/dbt_runner.py`'s `subprocess` call to `dbt seed`/`run`/`test`, not a manual step) — a failing dbt test blocks completion the same way a failed GX checkpoint does: `row_count_reconciliation`, `null_rate_check` (both PASS/FAIL views built from the reconciliation report), and `fk_integrity_check` (confirms every `appointments.pat_id` resolves to a real `patient_records.pat_id` in the target for the current run; skips gracefully rather than erroring when a smaller `TABLES_TO_MIGRATE` scope doesn't include both tables). `schema.yml` adds `not_null`/`unique`/`accepted_values` tests on top.
+`validation/validator.py` builds `data/reconciliation_report.json` (source/target row counts, null rates, cardinality per column, keyed by source column name even though target stats are queried by the renamed `target_column`). `validator` then runs **value-distribution reconciliation** (`validation/distribution_reconciler.py`): for every non-identity rule it computes the expected target distribution by running the rule's own `logic` as a `GROUP BY` against the immutable source table, computes the actual target distribution from Snowflake, and asserts every value bucket (NULL included) matches exactly. This is what proves a semantic transformation preserved meaning — that source `A` (5 000 rows) actually became target `Active` (5 000 rows), not just that row counts line up. A mismatch writes `data/distribution_reconciliation_report.json` with the offending buckets and blocks completion.
+
+Finally the dbt project (`validation/dbt_models/`) runs against Snowflake, invoked from `validator` via `validation/dbt_runner.py`. The three diagnostic models are **zero-row tests**: `row_count_reconciliation` and `null_rate_check` select only the rows where source and target diverge, `fk_integrity_check` selects orphaned `appointments.pat_id` values, and singular tests in `validation/dbt_models/tests/` fail dbt when any of those return a row. (The earlier `accepted_values: ['PASS','FAIL']` schema tests — which passed whether the status was `PASS` *or* `FAIL* — have been removed.) A failing dbt test blocks completion the same way a failed GX checkpoint does.
 
 ## Transformation Rule Contract
 ```json
@@ -135,10 +140,13 @@ Each checkpoint writes `data/gx_results_{checkpoint}.json` and raises `RuntimeEr
   "confidence": 0.84,
   "prompt_id": "prompt-uuid-abc123",
   "human_reviewed": false,
-  "override_note": null
+  "review_status": "AUTO_APPROVED",
+  "override_note": null,
+  "reviewer_id": null,
+  "reviewer_role": null
 }
 ```
-`logic` is a bare SQL expression referencing the source column by its real name (validated by `migration/executor.py`'s allow-list before being embedded into the SELECT that actually runs against Snowflake — see Known Limitations). `target_type` is one of `STRING`/`NUMBER`/`DATE`/`TIMESTAMP`/`BOOLEAN`, used to resolve the Snowflake column type; it takes priority over inferring the type from the source column, so an identity-mapped `BIGINT` column typed `NUMBER` by the LLM lands as `NUMBER(38,4)` rather than preserving `NUMBER(38,0)` precision — a known minor precision tradeoff, not a correctness bug.
+`logic` is a bare SQL expression referencing the source column by its real name. It is validated in two layers before being embedded into the SELECT that runs against Snowflake: a fast character allow-list / forbidden-keyword regex, then a `sqlglot` AST check (`_ast_validate_logic` in `migration/executor.py`) that parses the expression and rejects subqueries, table references, joins, CTEs, DML/DDL, any non-allowlisted function, and any column reference other than the declared source column. `target_type` is one of `STRING`/`NUMBER`/`DATE`/`TIMESTAMP`/`BOOLEAN`, used to resolve the Snowflake column type; it takes priority over inferring the type from the source column, so an identity-mapped `BIGINT` column typed `NUMBER` by the LLM lands as `NUMBER(38,4)` rather than preserving `NUMBER(38,0)` precision — a known minor precision tradeoff, not a correctness bug.
 
 ## Known Limitations
 LLM confidence is a routing signal, not proof. Semantic ambiguity needs domain expertise. Live Snowflake/LLM credentials are required. Great Expectations APIs can differ by version and are isolated behind a validation adapter. Production deployments require organization-specific IAM, encryption, retention, networking and regulatory review.
@@ -149,5 +157,5 @@ Healthcare-specific:
 - **Priority/ordinal direction is not inferrable from data**: `pri_lvl` (1–5) has no documented convention for whether 1 is highest or lowest priority — this is a case where confidence should stay low structurally, not just when sample values look unclear.
 
 Implementation:
-- **Rule `logic` injection defense is an allow-list, not a full SQL parser**: `migration/executor.py` validates each rule's LLM-generated `logic` against a conservative character allow-list and a forbidden-keyword blocklist (`;`, `--`, `/* */`, `DROP`/`DELETE`/`INSERT`/etc.) before embedding it in a SELECT. This blocks the obvious injection vectors but can't fully rule out a crafted non-forbidden-keyword expression (e.g. a subquery against another table). A `sqlglot`-based AST validator would close this more rigorously; not implemented here.
+- **Rule `logic` validation is regex + `sqlglot` AST, not a constrained DSL**: `migration/executor.py` runs the LLM-generated `logic` through a character allow-list / forbidden-keyword regex and then a `sqlglot` parse that rejects subqueries, table refs, joins, CTEs, DML/DDL, non-allowlisted functions, and foreign column references. This is materially stronger than the earlier regex-only allow-list (which let scalar subqueries through). A fully constrained transformation DSL compiled to SQL would be the production-grade endpoint; the AST approach is the pragmatic capstone choice.
 - **`ai_mapper` can't always infer a target name from column evidence alone** (no target schema is given to the LLM by design, to avoid inventing undocumented business meaning): when a proposed `target_column` is empty, a known placeholder (`UNKNOWN`, `TBD`, etc.), or not a valid identifier, `agents/ai_mapper.py` falls back to the source column name rather than passing the bad value through. `migration/executor.py` additionally rejects any table where two rules would still collide on the same `target_column` after that fallback, rather than letting a "duplicate column" error reach Snowflake.

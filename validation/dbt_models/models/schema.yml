@@ -27,28 +27,27 @@ seeds:
 
 models:
   - name: row_count_reconciliation
-    description: "Flags any migrated table where source and target row counts don't match."
+    description: >
+      Zero-row diagnostic. Any row here is a migrated table whose source and
+      target row counts diverge. tests/assert_row_counts_match.sql fails dbt
+      when this model returns rows.
     columns:
       - name: table_name
         tests:
           - not_null
-      - name: status
-        tests:
-          - accepted_values:
-              arguments:
-                values: ['PASS', 'FAIL']
 
   - name: null_rate_check
-    description: "Flags any column where the source-to-target null rate delta exceeds 2%."
+    description: >
+      Zero-row diagnostic. Any row here is a column whose source-to-target null
+      rate delta exceeds 2%. tests/assert_null_rates_match.sql fails dbt when
+      this model returns rows.
     columns:
       - name: table_name
         tests:
           - not_null
-      - name: status
-        tests:
-          - accepted_values:
-              arguments:
-                values: ['PASS', 'FAIL']
 
   - name: fk_integrity_check
-    description: "Rows returned here are orphaned appointments.pat_id values with no matching patient_records.pat_id in the target. An empty result set means FK integrity held."
+    description: >
+      Zero-row diagnostic. Any row here is an orphaned appointments.pat_id with
+      no matching patient_records.pat_id in the target.
+      tests/assert_no_orphan_fks.sql fails dbt when this model returns rows.

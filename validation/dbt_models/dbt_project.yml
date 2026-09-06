@@ -6,6 +6,7 @@ profile: migration_validation
 
 model-paths: ["models"]
 seed-paths: ["seeds"]
+test-paths: ["tests"]
 
 models:
   migration_validation:

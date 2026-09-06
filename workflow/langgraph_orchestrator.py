@@ -13,9 +13,10 @@ from agents.ai_mapper import map_schema
 from agents.rule_generator import generate_rules
 from agents.doc_generator import generate_documentation
 from validation.validator import run_validation
+from validation.distribution_reconciler import reconcile_distributions
 from validation.great_expectations.gx_checkpoints import run_source_baseline,run_post_load
 from validation.dbt_runner import run_dbt_validation
-from migration.executor import execute_migration
+from migration.executor import execute_migration,rollback_run
 from lineage.lineage_generator import generate_lineage
 
 class MigrationState(TypedDict,total=False):
@@ -27,6 +28,7 @@ class MigrationState(TypedDict,total=False):
     rules:list[dict]
     validation:dict
     gx_post_load:dict
+    distribution_reconciliation:dict
     dbt_log:dict
     documentation:str
     status:str
@@ -44,15 +46,22 @@ def ai_mapper(s):
     m=map_schema(s["schema_profile"],s["run_id"]); Path("data/ai_mappings.json").write_text(json.dumps(m,indent=2),encoding="utf-8")
     return {"mappings":m}
 
+_AUTO_NOTE="Confidence >= threshold; no human review required."
+
+def _auto_approved(x):
+    return dict(x,human_reviewed=False,review_status="AUTO_APPROVED",override_note=_AUTO_NOTE,
+        reviewer_id=None,reviewer_role=None)
+
 def human_review_gate(s):
     m=s["mappings"]; t=settings.confidence_threshold
     flagged=[(i,x) for i,x in enumerate(m) if x["confidence"]<t]
     if not flagged:
-        return {"approved_mappings":[dict(x,human_reviewed=True,override_note="Auto-cleared at/above threshold.") for x in m]}
+        return {"approved_mappings":[_auto_approved(x) for x in m]}
     queue=[{"mapping_index":i,**{k:x[k] for k in ["source_table","source_column","target_table","target_column","confidence","reasoning"]}} for i,x in flagged]
     Path("data/human_review_queue.json").write_text(json.dumps(queue,indent=2),encoding="utf-8")
     decisions=interrupt({"message":"Human review required.","threshold":t,"mappings":queue,
-        "format":[{"mapping_index":0,"decision":"approve","override_note":"Domain expert confirmation"}]})
+        "format":[{"mapping_index":0,"decision":"approve","override_note":"Domain expert confirmation",
+            "reviewer_id":"reviewer-001","reviewer_role":"data_sme"}]})
     by={int(x["mapping_index"]):x for x in decisions}
     flagged_indices={i for i,_ in flagged}
     missing=flagged_indices-by.keys()
@@ -60,14 +69,17 @@ def human_review_gate(s):
     approved=[]
     for i,x in enumerate(m):
         if i not in flagged_indices:
-            approved.append(dict(x,human_reviewed=True,override_note="Auto-cleared at/above threshold."))
+            approved.append(_auto_approved(x))
             continue
-        d=by[i]; note=d.get("override_note")
+        d=by[i]; note=d.get("override_note"); rid=d.get("reviewer_id"); role=d.get("reviewer_role")
+        if not rid or not role: raise PermissionError(f"Human decision for mapping {i} must include reviewer_id and reviewer_role")
         if d["decision"].lower()=="reject": raise PermissionError(f"Rejected mapping: {x['source_column']}")
         if x["confidence"]<t and not note: raise PermissionError("Low-confidence decision requires override_note")
-        approved.append(dict(x,human_reviewed=True,override_note=note))
-        audit.append(s["run_id"],"human_mapping_approved",{"mapping_index":i,"source_column":x["source_column"],"decision":d["decision"],"override_note":note})
-        score_human_review_decision(s["run_id"],i,x["source_column"],d["decision"],note)
+        approved.append(dict(x,human_reviewed=True,review_status="HUMAN_APPROVED",override_note=note,
+            reviewer_id=rid,reviewer_role=role))
+        audit.append(s["run_id"],"human_mapping_approved",{"mapping_index":i,"source_column":x["source_column"],
+            "decision":d["decision"],"override_note":note,"reviewer_id":rid,"reviewer_role":role})
+        score_human_review_decision(s["run_id"],i,x["source_column"],d["decision"],note,rid,role)
     Path("data/approved_mappings.json").write_text(json.dumps(approved,indent=2),encoding="utf-8")
     return {"approved_mappings":approved}
 
@@ -85,9 +97,11 @@ def validator(s):
     audit.append(s["run_id"],"gx_post_load_completed",{"passed":post_load_report["passed"]})
     r=run_validation(s["schema_profile"],s["run_id"],s["rules"])
     if not r["passed"]: raise RuntimeError("Validation failed; migration cannot complete.")
+    dist=reconcile_distributions(s["schema_profile"],s["run_id"],s["rules"])
+    if not dist["passed"]: raise RuntimeError("Value-distribution reconciliation failed; semantic transformation not preserved.")
     dbt_log=run_dbt_validation(s["run_id"])
     audit.append(s["run_id"],"dbt_validation_completed",{"steps":list(dbt_log)})
-    return {"validation":r,"gx_post_load":post_load_report,"dbt_log":dbt_log}
+    return {"validation":r,"gx_post_load":post_load_report,"distribution_reconciliation":dist,"dbt_log":dbt_log}
 
 def doc_generator(s):
     d=generate_documentation(s["schema_profile"],s["approved_mappings"],s["rules"],s["run_id"]); return {"documentation":d,"status":"completed"}
@@ -100,14 +114,35 @@ def build_graph():
     g.add_edge("validator","doc_generator"); g.add_edge("doc_generator",END)
     return g.compile(checkpointer=MemorySaver())
 
-if __name__=="__main__":
-    rid=os.getenv("RUN_ID",str(uuid4())); app=build_graph()
+def run_migration(rid):
+    """Drive the graph end to end: emit run lifecycle audit events and, on any
+    failure, roll back the run's Snowflake target tables before re-raising."""
+    app=build_graph()
     cfg={"configurable":{"thread_id":rid}}
-    result=app.invoke({"run_id":rid,"status":"started"},config=cfg)
-    while "__interrupt__" in result:
-        interrupt_payload=result["__interrupt__"][0].value
-        print(json.dumps(interrupt_payload,indent=2,default=str))
-        print("Enter decisions as a JSON array matching the 'format' shown above, then press Enter:")
-        decisions=json.loads(input())
-        result=app.invoke(Command(resume=decisions),config=cfg)
+    audit.append(rid,"run_started",{"run_id":rid,"tables":list(settings.tables_to_migrate)})
+    try:
+        result=app.invoke({"run_id":rid,"status":"started"},config=cfg)
+        while "__interrupt__" in result:
+            interrupt_payload=result["__interrupt__"][0].value
+            print(json.dumps(interrupt_payload,indent=2,default=str))
+            print("Enter decisions as a JSON array matching the 'format' shown above")
+            print("(each entry needs mapping_index, decision, override_note, reviewer_id, reviewer_role), then press Enter:")
+            decisions=json.loads(input())
+            result=app.invoke(Command(resume=decisions),config=cfg)
+    except BaseException as e:
+        audit.append(rid,"run_failed",{"run_id":rid,"error":f"{type(e).__name__}: {e}"})
+        try:
+            dropped=rollback_run(rid)
+            audit.append(rid,"run_rolled_back",{"run_id":rid,"dropped_tables":dropped})
+        except Exception as re:
+            audit.append(rid,"run_rollback_failed",{"run_id":rid,"error":str(re)})
+        raise
+    audit.append(rid,"run_completed",{"run_id":rid,"status":result.get("status"),
+        "validation_passed":result.get("validation",{}).get("passed"),
+        "distribution_reconciliation_passed":result.get("distribution_reconciliation",{}).get("passed")})
+    return result
+
+if __name__=="__main__":
+    rid=os.getenv("RUN_ID",str(uuid4()))
+    result=run_migration(rid)
     print(json.dumps(result,indent=2,default=str))

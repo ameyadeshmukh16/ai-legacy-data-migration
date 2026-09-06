@@ -105,19 +105,29 @@ def run_source_baseline(profile):
     return report
 
 
-def run_post_extraction(extracted_data, baseline_report):
+def run_post_extraction(extracted_data, baseline_report, expected_columns=None):
+    """Guards the extraction boundary: raw extracted rows, raw column names,
+    before any transformation rule is applied. expected_columns maps table ->
+    the list of source columns the profile says should have been extracted."""
+    expected_columns = expected_columns or {}
     report = {"checkpoint": "post_extraction", "tables": {}, "passed": True}
     for table, rows in extracted_data.items():
         df = rows if isinstance(rows, pd.DataFrame) else pd.DataFrame(rows)
         baseline = baseline_report["tables"].get(table, {})
         baseline_count = baseline.get("row_count")
         row_count_match = baseline_count is None or len(df) == baseline_count
-        no_columns_dropped = True
+        expected = set(expected_columns.get(table, []))
+        actual = set(df.columns)
+        dropped = sorted(expected - actual)
+        added = sorted(actual - expected)
+        no_columns_dropped = not dropped and not added
         report["tables"][table] = {
             "row_count": len(df),
             "baseline_row_count": baseline_count,
             "row_count_match": row_count_match,
             "no_columns_dropped": no_columns_dropped,
+            "dropped_columns": dropped,
+            "unexpected_columns": added,
             "passed": row_count_match and no_columns_dropped,
         }
         report["passed"] = report["passed"] and row_count_match and no_columns_dropped

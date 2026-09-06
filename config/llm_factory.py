@@ -6,9 +6,6 @@ def get_chat_llm(temperature=0):
     if settings.llm_provider == "google_genai":
         from langchain_google_genai import ChatGoogleGenerativeAI
         return ChatGoogleGenerativeAI(google_api_key=settings.llm_api_key,model=settings.llm_model,temperature=temperature)
-    if settings.llm_provider == "anthropic":
-        from langchain_anthropic import ChatAnthropic
-        return ChatAnthropic(api_key=settings.llm_api_key,model=settings.llm_model,temperature=temperature)
     if settings.llm_provider == "openai":
         from langchain_openai import ChatOpenAI
         return ChatOpenAI(api_key=settings.llm_api_key,model=settings.llm_model,temperature=temperature)

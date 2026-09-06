@@ -18,12 +18,18 @@ class TransformationRule(BaseModel):
     confidence:float=Field(ge=0,le=1)
     prompt_id:str
     human_reviewed:bool=False
+    review_status:str="AUTO_APPROVED"
     override_note:str|None=None
+    reviewer_id:str|None=None
+    reviewer_role:str|None=None
 
 def validate_rules_before_execution(rules):
+    from migration.executor import _validate_logic
     for r in rules:
-        if r["confidence"]<settings.confidence_threshold and (not r["human_reviewed"] or not r["override_note"]):
+        if r["confidence"]<settings.confidence_threshold and (r.get("review_status")!="HUMAN_APPROVED" or not r["override_note"]):
             raise PermissionError(f"Unapproved low-confidence rule: {r['source_column']} -> {r['target_column']}")
+        if r.get("logic"):
+            _validate_logic(r["logic"],r["source_column"])
 
 def generate_rules(mappings,run_id):
     llm=get_chat_llm().with_structured_output(TransformationRule)
@@ -48,8 +54,11 @@ Override note: {note}""")
             reviewed=m.get("human_reviewed",False),note=m.get("override_note"))
         r=llm.invoke(msgs); r.prompt_id=pid; r.source_table=m["source_table"]; r.target_table=m["target_table"]
         r.source_column=m["source_column"]; r.target_column=m["target_column"]
-        r.confidence=m["confidence"]; r.human_reviewed=m.get("human_reviewed",False); r.override_note=m.get("override_note")
+        r.confidence=m["confidence"]; r.human_reviewed=m.get("human_reviewed",False)
+        r.review_status=m.get("review_status","AUTO_APPROVED"); r.override_note=m.get("override_note")
+        r.reviewer_id=m.get("reviewer_id"); r.reviewer_role=m.get("reviewer_role")
         rules.append(r.model_dump())
         audit.append(run_id,"transformation_rule_generated",{"prompt_id":pid,"source_column":r.source_column,
-            "target_column":r.target_column,"confidence":r.confidence,"human_reviewed":r.human_reviewed})
+            "target_column":r.target_column,"confidence":r.confidence,"human_reviewed":r.human_reviewed,
+            "review_status":r.review_status,"reviewer_id":r.reviewer_id,"reviewer_role":r.reviewer_role})
     validate_rules_before_execution(rules); return rules
