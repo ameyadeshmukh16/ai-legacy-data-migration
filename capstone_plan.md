@@ -7,7 +7,7 @@
 - Domain: Healthcare (Clinical Operations)
 - Base: Existing zip project - expand, don't rebuild
 - Standout Feature: Auto-generated data lineage visualization (Mermaid diagrams)
-- LLM: Anthropic Claude (via LangChain + langchain-anthropic)
+- LLM: Google Gemini (via LangChain + langchain-google-genai), selected for free credits during development. Provider is abstracted behind `config/llm_factory.py` (`LLM_PROVIDER` env var) so Anthropic Claude can be added later as a second/alternate option without touching agent code.
 - Primary dev tool: Claude Code CLI
 
 ## Time Budget (4.5-5 hours)
@@ -17,7 +17,7 @@ Since the base project already has the LangGraph orchestrator, all 7 nodes, audi
 | Phase | Time | What gets done | Base status |
 |-------|------|----------------|-------------|
 | Phase 1 - Schema expansion + seed data | 40 min | Expand 5-table schema to 8 tables, write seed script (10k+ rows) | init_db.sql exists but minimal, no seed script |
-| Phase 2 - LLM swap + LangFuse | 25 min | Swap OpenAI to Anthropic in all 3 agents, wire LangFuse callbacks | Agents exist, LLM hardcoded to OpenAI, LangFuse undone |
+| Phase 2 - LLM swap + LangFuse | 25 min | LLM swap done (OpenAI to Gemini via provider factory); remaining work is wiring LangFuse callbacks | Agents exist, LLM swap complete, LangFuse undone |
 | Phase 3 - Great Expectations | 35 min | Implement actual GX suites for all 3 checkpoints | README placeholder only |
 | Phase 4 - dbt models | 20 min | Replace stub SQL with real row count, null rate, FK integrity models | Single stub SELECT exists |
 | Phase 5 - Lineage visualization | 30 min | Build lineage_generator.py, Mermaid output, color-coded by confidence | Entirely missing |
@@ -105,28 +105,36 @@ Use `Faker` for names, dates. Use `random.choice` for all code columns. Inject d
 
 ## Phase 2 - LLM Swap + LangFuse (25 min)
 
-### 2.1 Swap OpenAI to Anthropic
+### 2.1 Swap OpenAI to Gemini (done ahead of schedule, during prerequisite setup)
 
-Three files need changes: `agents/ai_mapper.py`, `agents/rule_generator.py`, `agents/doc_generator.py`
+Rather than hardcoding a single provider in each agent, `config/llm_factory.py` was introduced as a thin provider switch, read via `LLM_PROVIDER` (`google_genai` default, `anthropic` and `openai` also supported). All three agent files (`agents/ai_mapper.py`, `agents/rule_generator.py`, `agents/doc_generator.py`) now call `get_chat_llm()` instead of instantiating `ChatOpenAI` directly:
 
-Change in each:
 ```python
-# Remove
-from langchain_openai import ChatOpenAI
-llm = ChatOpenAI(api_key=settings.llm_api_key, model=settings.llm_model, temperature=0)
+# config/llm_factory.py
+def get_chat_llm(temperature=0):
+    if settings.llm_provider == "google_genai":
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        return ChatGoogleGenerativeAI(google_api_key=settings.llm_api_key, model=settings.llm_model, temperature=temperature)
+    if settings.llm_provider == "anthropic":
+        from langchain_anthropic import ChatAnthropic
+        return ChatAnthropic(api_key=settings.llm_api_key, model=settings.llm_model, temperature=temperature)
+    ...
 
-# Replace with
-from langchain_anthropic import ChatAnthropic
-llm = ChatAnthropic(api_key=settings.llm_api_key, model=settings.llm_model, temperature=0)
+# agents/ai_mapper.py (and rule_generator.py, doc_generator.py)
+from config.llm_factory import get_chat_llm
+llm = get_chat_llm().with_structured_output(MappingSuggestion)
 ```
 
-Update `requirements.txt`: remove `langchain-openai`, add `langchain-anthropic>=0.3`
+`requirements.txt`: removed `langchain-openai`, added `langchain-google-genai>=2.0`. Adding Claude later is just `pip install langchain-anthropic`, setting `LLM_PROVIDER=anthropic`, and updating `LLM_API_KEY`/`LLM_MODEL` in `.env` — no agent code changes.
 
-Update `.env.example`:
+`.env` / `.env.example`:
 ```
-LLM_API_KEY=your_anthropic_api_key_here
-LLM_MODEL=claude-sonnet-4-6
+LLM_PROVIDER=google_genai
+LLM_API_KEY=your_gemini_api_key_here
+LLM_MODEL=gemini-flash-latest
 ```
+
+Note: Gemini's free tier gives **zero** request quota to `-pro` models (confirmed via a live 429 during setup) — `gemini-flash-latest` is the model that actually has free-tier quota and is what's configured. If richer reasoning is needed later, either request pro-tier quota/billing or switch `LLM_PROVIDER` to `anthropic`.
 
 ### 2.2 Wire LangFuse
 
@@ -142,7 +150,7 @@ langfuse_handler = CallbackHandler(
     trace_name=f"ai_mapper_{run_id}",
     tags=["migration", "healthcare"]
 )
-llm = ChatAnthropic(...).with_config({"callbacks": [langfuse_handler]})
+llm = get_chat_llm().with_config({"callbacks": [langfuse_handler]})
 ```
 
 Human review decisions get logged as LangFuse scores via `langfuse_handler.langfuse.score(...)` in `human_review_gate` node - attaches override decisions to the relevant trace.
@@ -330,7 +338,7 @@ Build in this sequence to minimize blocked time:
 
 1. `scripts/init_db.sql` - schema expansion (run and verify in Docker first)
 2. `seed/seed_db.py` - seed data (run, confirm row counts)
-3. `agents/ai_mapper.py` + `agents/rule_generator.py` + `agents/doc_generator.py` - LLM swap to Anthropic + LangFuse callbacks
+3. `agents/ai_mapper.py` + `agents/rule_generator.py` + `agents/doc_generator.py` - LLM swap to Gemini (done) + LangFuse callbacks (remaining)
 4. `validation/great_expectations/gx_checkpoints.py` - GX suites
 5. `validation/dbt_models/` - real SQL models
 6. `lineage/lineage_generator.py` - Mermaid generator
@@ -340,7 +348,7 @@ Build in this sequence to minimize blocked time:
 Key Claude Code prompts:
 - "Expand this PostgreSQL healthcare schema SQL to add these 3 tables and column additions, preserving existing CREATE TABLE statements"
 - "Write a Python seed script using Faker to populate this schema with realistic healthcare data, injecting these specific data quality issues"
-- "Swap langchain-openai to langchain-anthropic in these 3 agent files and add LangFuse callback handler"
+- "Add LangFuse callback handler to these 3 agent files, wired through the existing get_chat_llm() factory"
 - "Implement Great Expectations suites for these 3 checkpoints using the in-memory/pandas approach, no YAML"
 - "Build a Mermaid lineage diagram generator that reads approved_mappings.json and transformation_rules.json"
 
@@ -352,12 +360,12 @@ Key Claude Code prompts:
 |-------------|-------------|-----------------|
 | 7 LangGraph nodes | Done | Done |
 | Human-in-the-loop gate | Done (real interrupt) | Done |
-| LangFuse instrumentation | Missing | Added Phase 2 |
+| LangFuse instrumentation | Missing | Remaining Phase 2 work |
 | Great Expectations (3 checkpoints) | README stub | Added Phase 3 |
 | dbt post-migration models | Single stub SQL | Added Phase 4 |
 | 10,000+ rows seed data | 1 demo row | Added Phase 1 |
 | Healthcare schema with complexity | 5 minimal tables | Expanded Phase 1 |
-| Anthropic/Claude as LLM | Hardcoded OpenAI | Fixed Phase 2 |
+| Gemini as LLM (Anthropic Claude as later add-on via provider factory) | Hardcoded OpenAI | Fixed ahead of Phase 2 |
 | Lineage visualization | Missing | Added Phase 5 |
 | Correct Snowflake type mapping | All VARCHAR | Fixed Phase 6 |
 | README all 8 sections | Mostly there | Updated Phase 7 |

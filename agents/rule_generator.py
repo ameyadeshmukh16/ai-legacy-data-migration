@@ -1,8 +1,8 @@
 from uuid import uuid4
 from pydantic import BaseModel,Field
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 from config.settings import settings
+from config.llm_factory import get_chat_llm
 from audit.audit_logger import AuditLogger
 
 class TransformationRule(BaseModel):
@@ -22,8 +22,7 @@ def validate_rules_before_execution(rules):
             raise PermissionError(f"Unapproved low-confidence rule: {r['source_column']} -> {r['target_column']}")
 
 def generate_rules(mappings,run_id):
-    if not settings.llm_api_key or not settings.llm_model: raise RuntimeError("LLM credentials required")
-    llm=ChatOpenAI(api_key=settings.llm_api_key,model=settings.llm_model,temperature=0).with_structured_output(TransformationRule)
+    llm=get_chat_llm().with_structured_output(TransformationRule)
     audit=AuditLogger(settings.audit_log_path); rules=[]
     for m in mappings:
         pid=str(uuid4())

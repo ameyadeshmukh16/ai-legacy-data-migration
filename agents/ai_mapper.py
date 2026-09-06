@@ -2,8 +2,8 @@ import json
 from uuid import uuid4
 from pydantic import BaseModel,Field
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 from config.settings import settings
+from config.llm_factory import get_chat_llm
 from audit.audit_logger import AuditLogger
 
 class MappingSuggestion(BaseModel):
@@ -22,8 +22,7 @@ class MappingSuggestion(BaseModel):
 SYSTEM_PROMPT="""You are a senior data migration assistant. Infer semantic meaning only from supplied evidence. Never invent undocumented business meanings. If evidence is weak, lower confidence and explain why human review is required."""
 
 def map_schema(profile,run_id):
-    if not settings.llm_api_key or not settings.llm_model: raise RuntimeError("LLM_API_KEY and LLM_MODEL are required")
-    llm=ChatOpenAI(api_key=settings.llm_api_key,model=settings.llm_model,temperature=0).with_structured_output(MappingSuggestion)
+    llm=get_chat_llm().with_structured_output(MappingSuggestion)
     audit=AuditLogger(settings.audit_log_path); results=[]
     for table,meta in profile["tables"].items():
         for col in meta["columns"]:
