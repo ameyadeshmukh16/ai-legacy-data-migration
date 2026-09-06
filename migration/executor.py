@@ -7,12 +7,22 @@ def _snowflake_engine():
     url=f"snowflake://{settings.snowflake_user}:{settings.snowflake_password}@{settings.snowflake_account}/{settings.snowflake_database}/{settings.snowflake_schema}?warehouse={settings.snowflake_warehouse}"
     return create_engine(url)
 
+def qualified_target_table(table,run_id):
+    return f'"{settings.target_schema}"."{table}_{run_id.replace("-","_")}"'
+
+BATCH_SIZE=500
+
 @retry(stop=stop_after_attempt(3),wait=wait_exponential(multiplier=1,min=2,max=20))
-def _load_rows(engine,table,columns,rows):
+def _load_batch(engine,stmt,batch):
+    with engine.begin() as conn: conn.execute(stmt,batch)
+
+def _load_rows(engine,qualified_table,columns,rows):
     cols=", ".join(f'"{c}"' for c in columns); ph=", ".join(f":p{i}" for i in range(len(columns)))
-    stmt=text(f'INSERT INTO "{table}" ({cols}) VALUES ({ph})')
-    with engine.begin() as conn:
-        for row in rows: conn.execute(stmt,{f"p{i}":row[i] for i in range(len(columns))})
+    stmt=text(f'INSERT INTO {qualified_table} ({cols}) VALUES ({ph})')
+    for start in range(0,len(rows),BATCH_SIZE):
+        chunk=rows[start:start+BATCH_SIZE]
+        batch=[{f"p{j}":row[j] for j in range(len(columns))} for row in chunk]
+        _load_batch(engine,stmt,batch)
 
 def execute_migration(profile,rules,run_id):
     for r in rules:
@@ -24,9 +34,9 @@ def execute_migration(profile,rules,run_id):
         columns=[c["name"] for c in meta["columns"]]
         select_cols=", ".join(f'"{c}"' for c in columns)
         with source.connect() as conn: rows=conn.execute(text(f'SELECT {select_cols} FROM "{table}"')).fetchall()
-        target_table=f'{settings.target_schema}_{table}_{run_id.replace("-","_")}'
+        qualified_table=qualified_target_table(table,run_id)
         defs=", ".join(f'"{c}" VARCHAR' for c in columns)
-        with target.begin() as conn: conn.execute(text(f'CREATE TABLE IF NOT EXISTS "{target_table}" ({defs})'))
-        _load_rows(target,target_table,columns,rows)
-        AuditLogger(settings.audit_log_path).append(run_id,"table_loaded",{"source_table":table,"target_table":target_table,"row_count":len(rows)})
+        with target.begin() as conn: conn.execute(text(f'CREATE TABLE IF NOT EXISTS {qualified_table} ({defs})'))
+        _load_rows(target,qualified_table,columns,rows)
+        AuditLogger(settings.audit_log_path).append(run_id,"table_loaded",{"source_table":table,"target_table":qualified_table,"row_count":len(rows)})
     return {"status":"loaded"}

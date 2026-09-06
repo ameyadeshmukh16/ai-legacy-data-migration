@@ -18,7 +18,7 @@ Since the base project already has the LangGraph orchestrator, all 7 nodes, audi
 |-------|------|----------------|-------------|
 | Phase 1 - Schema expansion + seed data | 40 min | Expand 5-table schema to 8 tables, write seed script (10k+ rows) | init_db.sql exists but minimal, no seed script |
 | Phase 2 - LLM swap + LangFuse | 25 min | LLM swap (OpenAI to Gemini via provider factory) and LangFuse callback/scoring wiring both done | Complete |
-| Phase 3 - Great Expectations | 35 min | Implement actual GX suites for all 3 checkpoints | README placeholder only |
+| Phase 3 - Great Expectations | 35 min | GX suites for all 3 checkpoints implemented (GX 1.x API); also fixed a pre-existing Snowflake schema-qualification bug and slow row-by-row insert in executor.py | Complete |
 | Phase 4 - dbt models | 20 min | Replace stub SQL with real row count, null rate, FK integrity models | Single stub SELECT exists |
 | Phase 5 - Lineage visualization | 30 min | Build lineage_generator.py, Mermaid output, color-coded by confidence | Entirely missing |
 | Phase 6 - executor type mapping | 15 min | Add source-to-Snowflake type mapping (not all VARCHAR) | Currently loads everything as VARCHAR |
@@ -169,21 +169,16 @@ Each agent wires the callback at LLM initialization: `llm = get_chat_llm().with_
 
 ---
 
-## Phase 3 - Great Expectations (35 min)
+## Phase 3 - Great Expectations (35 min, done)
 
-Replace the `validation/great_expectations/README.md` placeholder with actual implementation.
+Replaced the `validation/great_expectations/README.md` placeholder with `validation/great_expectations/gx_checkpoints.py`.
 
-New file: `validation/great_expectations/gx_checkpoints.py`
-
-Use GX's in-memory/pandas approach (no YAML config files needed - faster to build):
+The installed `great-expectations` is 1.22.0, a major redesign from the 0.18.x line the plan originally targeted — `great_expectations.core.batch.RuntimeBatchRequest` no longer exists. GX 1.x's lightweight path is `gx.get_context(mode="ephemeral")` + `data_sources.add_pandas(...).add_dataframe_asset(...).add_batch_definition_whole_dataframe(...).get_batch(...)`, then `batch.validate(single_expectation)` per check — still no YAML/project config needed, just a different object path to get there:
 
 ```python
-import great_expectations as gx
-from great_expectations.core.batch import RuntimeBatchRequest
-
-def run_source_baseline(profile: dict) -> dict: ...
-def run_post_extraction(extracted_data: dict) -> dict: ...
-def run_post_load(profile: dict, run_id: str) -> dict: ...
+def run_source_baseline(profile: dict) -> dict: ...       # validates Postgres source tables directly
+def run_post_extraction(extracted_data: dict, baseline_report: dict) -> dict: ...  # row counts + no dropped columns vs baseline
+def run_post_load(profile: dict, run_id: str, baseline_report: dict) -> dict: ...  # validates Snowflake target vs baseline
 ```
 
 **Checkpoint 1 - Source baseline expectations per table:**
@@ -201,7 +196,13 @@ def run_post_load(profile: dict, run_id: str) -> dict: ...
 - Null rates within 2% tolerance of source baseline
 - Mapped status code columns contain only valid target values (e.g., patient_status in ['Active', 'Discharged', 'Inactive', 'Suspended'])
 
-All three checkpoints write results to `data/gx_results_{checkpoint}.json`. A failure at any checkpoint raises an exception that blocks the pipeline.
+All three checkpoints write results to `data/gx_results_{checkpoint}.json`. A failure at any checkpoint raises an exception that blocks the pipeline. Known status-code domains live in `KNOWN_VALUE_SETS` in `gx_checkpoints.py`, sourced from `scripts/init_db.sql`/`seed/seed_db.py` (e.g. `pat_st_cd`: `['A','D','I','S']`, `blood_grp_cd`: the 8 seeded blood-group codes); columns not in that dict are free text / undocumented and are not domain-checked, matching the deliberate ambiguity built into the schema.
+
+While testing `run_post_load` against real Snowflake data, found and fixed two pre-existing bugs blocking it:
+- `migration/executor.py` created the `MIGRATION_STAGE` schema but never actually wrote into it — `CREATE SCHEMA IF NOT EXISTS` doesn't switch the connection's current schema the way `USE SCHEMA` would, so every table silently landed in `PUBLIC` instead. Fixed by fully qualifying every target table reference via a new `qualified_target_table(table, run_id)` helper, used consistently by the executor, `validation/validator.py`, and `gx_checkpoints.py`.
+- `_load_rows` inserted one row at a time inside a single long transaction — 27k rows took over 16 minutes without completing. Rewritten to batch in chunks of 500 (matching the pattern already used in `seed/seed_db.py`), bringing the same load down to ~70 seconds.
+
+Verified end-to-end: all three checkpoints run for real against the live Postgres source and a real Snowflake load (`patient_records`, `appointments`), all passing.
 
 ---
 
