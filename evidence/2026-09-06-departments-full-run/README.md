@@ -3,12 +3,46 @@
 This is the artifact set from `run_id=1f0fef8a-a433-48d7-ae50-9e6ee3b181ba`, the first
 `python -m workflow.langgraph_orchestrator` execution to complete successfully end-to-end
 after the post-Phase-7 P0 remediation (see `capstone_plan.md`'s "Post-Phase-7 Remediation"
-section). Scoped to a single table (`TABLES_TO_MIGRATE=departments`) to fit within the
-free-tier LLM rate limits available that day — the full 5-table default scope has not yet
-been run live (see the plan's Verification section for what's still pending).
+section). Scoped to a single table (`TABLES_TO_MIGRATE=departments`, 12 rows) to fit within
+the free-tier LLM rate limits available that day.
 
 Real Postgres (docker-compose) source, real Snowflake target, real LLM calls (Groq
 `openai/gpt-oss-120b`), real dbt execution. Nothing here is synthetic or hand-edited.
+
+## Version note — READ THIS BEFORE INTERPRETING THESE ARTIFACTS
+
+This evidence was captured on commit **`40e93dc`** (2026-09-06), *before* the final
+hardening round (**`c4f0b3d`**, "Harden validation layer"). It is a genuine end-to-end
+execution of the pipeline **as it stood then** — it is **not** output of the final code,
+and is not presented as such.
+
+The final code additionally performs, none of which is reflected in the JSON files here:
+
+- **Value-distribution reconciliation** (`validation/distribution_reconciler.py`) — replays
+  each non-identity rule's `logic` as a `GROUP BY` against the source and matches every
+  value bucket against the loaded Snowflake target; blocks on mismatch.
+- **GX post-extraction on raw pre-transform data** with a real column-drop check
+  (`dropped_columns` / `unexpected_columns` set comparison) instead of a hardcoded
+  `no_columns_dropped: true`.
+- **`sqlglot` AST validation** of every transformation `logic` (rejects subqueries, table
+  refs, joins, CTEs, DML/DDL, foreign column refs, non-allowlisted functions).
+- **Reviewer identity** — `reviewer_id` / `reviewer_role` required on every human decision
+  and persisted into the approved mapping, the `human_mapping_approved` audit event, and
+  the LangFuse score; explicit `review_status` (`AUTO_APPROVED` / `HUMAN_APPROVED` /
+  `HUMAN_REJECTED`) with `human_reviewed=false` on the auto path.
+- **Run lifecycle + rollback** — `run_started` / `run_completed` / `run_failed` /
+  `run_rolled_back` audit events; on any failure the run's `<table>_<run_id>` Snowflake
+  tables are dropped automatically.
+- **dbt zero-row / singular tests** — the old `accepted_values: ['PASS','FAIL']` schema
+  tests (which passed whether the row said PASS *or* FAIL) are gone; a reconciliation
+  mismatch now actually fails `dbt test`.
+
+These additions are covered by automated tests — `tests/test_sql_ast_validation.py`,
+`tests/test_rollback.py`, `tests/test_semantic_e2e.py` (incl. a live-Postgres test
+executing `A -> Active` / `I -> Inactive` through the real rule pipeline), and updates to
+the HITL / rule-generator tests (53 tests total; see `evidence/pytest-final.txt`). They
+were **not** re-executed as a committed live run because the free-tier LLM quota needed for
+a multi-table run was unavailable. See `SUBMISSION_NOTES.md` for the full scope disclosure.
 
 ## Files
 
@@ -44,7 +78,7 @@ for e in events:
 print(f"Hash chain verified intact across all {len(events)} events.")
 ```
 
-## What this proves
+## What this run proves (as of commit `40e93dc`)
 
 - `migration_executor` genuinely applies each rule's `logic` (see `transformation_rules.json`'s
   `TRIM(dept_name)` rule and `audit_log_snapshot.json`'s `table_loaded` event, whose `select_sql`
@@ -55,4 +89,9 @@ print(f"Hash chain verified intact across all {len(events)} events.")
   review and resumed in the same process via `Command(resume=...)`.
 - All three Great Expectations checkpoints ran from inside the executable graph (not standalone
   scripts) and passed against real data.
-- dbt `seed`/`run`/`test` executed from `validator` via subprocess and all 10 dbt tests passed.
+- dbt `seed`/`run`/`test` executed from `validator` via subprocess and completed; the dbt test
+  set has since been rewritten (see the Version note above), so the specific count here is
+  historical.
+
+For what the *current* code does beyond this, and how it is verified, see the Version note
+above and `SUBMISSION_NOTES.md`.

@@ -1,0 +1,68 @@
+# pytest -v -rs   —   2026-09-08T05:13:03Z
+# python: Python 3.12.4
+# commit: c4f0b3d8105524b93b9b94528087852266fb1b83
+# note: run in the project venv with source Postgres (docker compose) up.
+#        test_semantic_e2e live-Postgres test runs; it self-skips if Postgres is unreachable.
+#
+============================= test session starts =============================
+platform win32 -- Python 3.12.4, pytest-9.1.1, pluggy-1.6.0 -- C:\Users\ameya\PROJECTS\AI Assisted Legacy Migration\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\ameya\PROJECTS\AI Assisted Legacy Migration
+plugins: anyio-4.15.1, Faker-40.38.0, langsmith-0.12.2
+collecting ... collected 53 items
+
+tests/test_ai_mapper_target_fallback.py::test_empty_string_falls_back_to_source_column PASSED [  1%]
+tests/test_ai_mapper_target_fallback.py::test_unknown_placeholder_falls_back_to_source_column PASSED [  3%]
+tests/test_ai_mapper_target_fallback.py::test_none_falls_back_to_source_column PASSED [  5%]
+tests/test_ai_mapper_target_fallback.py::test_invalid_identifier_falls_back_to_source_column PASSED [  7%]
+tests/test_ai_mapper_target_fallback.py::test_valid_inferred_name_is_kept PASSED [  9%]
+tests/test_confidence_gate.py::test_low_confidence_without_review_raises PASSED [ 11%]
+tests/test_confidence_gate.py::test_low_confidence_reviewed_without_note_raises PASSED [ 13%]
+tests/test_confidence_gate.py::test_low_confidence_approved_with_note_passes PASSED [ 15%]
+tests/test_confidence_gate.py::test_auto_approved_flag_does_not_satisfy_low_confidence_gate PASSED [ 16%]
+tests/test_confidence_gate.py::test_high_confidence_passes_without_review PASSED [ 18%]
+tests/test_executor_sql_building.py::test_snowflake_type_mappings PASSED [ 20%]
+tests/test_executor_sql_building.py::test_validate_logic_rejects_semicolon_injection PASSED [ 22%]
+tests/test_executor_sql_building.py::test_validate_logic_rejects_ddl_keywords PASSED [ 24%]
+tests/test_executor_sql_building.py::test_validate_logic_rejects_comment_injection PASSED [ 26%]
+tests/test_executor_sql_building.py::test_validate_logic_allows_case_expression PASSED [ 28%]
+tests/test_executor_sql_building.py::test_validate_logic_rejects_empty PASSED [ 30%]
+tests/test_executor_sql_building.py::test_validate_identifier_rejects_quotes_and_spaces PASSED [ 32%]
+tests/test_executor_sql_building.py::test_validate_identifier_accepts_normal_name PASSED [ 33%]
+tests/test_executor_sql_building.py::test_build_select_sql_produces_expected_shape PASSED [ 35%]
+tests/test_executor_sql_building.py::test_check_unique_target_columns_raises_on_duplicate PASSED [ 37%]
+tests/test_executor_sql_building.py::test_check_unique_target_columns_passes_when_distinct PASSED [ 39%]
+tests/test_gx_json_serializable.py::test_null_rate_comparison_produces_json_serializable_bool PASSED [ 41%]
+tests/test_human_review_gate.py::test_all_auto_cleared_no_interrupt_needed PASSED [ 43%]
+tests/test_human_review_gate.py::test_mixed_flagged_and_clear_only_requires_flagged_decision PASSED [ 45%]
+tests/test_human_review_gate.py::test_rejected_flagged_mapping_raises PASSED [ 47%]
+tests/test_human_review_gate.py::test_missing_decision_for_flagged_mapping_raises PASSED [ 49%]
+tests/test_human_review_gate.py::test_missing_reviewer_identity_raises PASSED [ 50%]
+tests/test_rollback.py::test_rollback_run_drops_every_run_scoped_table PASSED [ 52%]
+tests/test_rollback.py::test_rollback_noop_without_snowflake PASSED      [ 54%]
+tests/test_rollback.py::test_run_migration_emits_run_failed_and_rolls_back PASSED [ 56%]
+tests/test_rule_generator_validation.py::test_validate_rules_before_execution_mixed_batch_raises_on_bad_rule PASSED [ 58%]
+tests/test_rule_generator_validation.py::test_validate_rules_before_execution_all_high_confidence_passes PASSED [ 60%]
+tests/test_semantic_e2e.py::test_distribution_reconciliation_passes_when_buckets_align PASSED [ 62%]
+tests/test_semantic_e2e.py::test_distribution_reconciliation_fails_on_count_drift PASSED [ 64%]
+tests/test_semantic_e2e.py::test_identity_rules_are_skipped PASSED       [ 66%]
+tests/test_semantic_e2e.py::test_rule_logic_actually_transforms_values PASSED [ 67%]
+tests/test_sql_ast_validation.py::test_valid_transformation_logic_accepted[dept_id-dept_id] PASSED [ 69%]
+tests/test_sql_ast_validation.py::test_valid_transformation_logic_accepted[TRIM(dept_name)-dept_name] PASSED [ 71%]
+tests/test_sql_ast_validation.py::test_valid_transformation_logic_accepted[COALESCE(TRIM(dob), '')-dob] PASSED [ 73%]
+tests/test_sql_ast_validation.py::test_valid_transformation_logic_accepted[CAST(appt_st AS VARCHAR)-appt_st] PASSED [ 75%]
+tests/test_sql_ast_validation.py::test_valid_transformation_logic_accepted[NULLIF(TRIM(bill_st), '')-bill_st] PASSED [ 77%]
+tests/test_sql_ast_validation.py::test_valid_transformation_logic_accepted[CASE WHEN pat_st_cd = 'A' THEN 'Active' WHEN pat_st_cd = 'D' THEN 'Discharged' ELSE NULL END-pat_st_cd] PASSED [ 79%]
+tests/test_sql_ast_validation.py::test_valid_transformation_logic_accepted[CASE WHEN blood_grp_cd = 'AP' THEN 'A+' ELSE UPPER(blood_grp_cd) END-blood_grp_cd] PASSED [ 81%]
+tests/test_sql_ast_validation.py::test_unsafe_transformation_logic_rejected[(SELECT max(x) FROM other)-dept_id] PASSED [ 83%]
+tests/test_sql_ast_validation.py::test_unsafe_transformation_logic_rejected[dept_name || (SELECT code FROM secrets)-dept_name] PASSED [ 84%]
+tests/test_sql_ast_validation.py::test_unsafe_transformation_logic_rejected[other_col-dept_id] PASSED [ 86%]
+tests/test_sql_ast_validation.py::test_unsafe_transformation_logic_rejected[t.dept_id-dept_id] PASSED [ 88%]
+tests/test_sql_ast_validation.py::test_unsafe_transformation_logic_rejected[pg_sleep(10)-dept_id] PASSED [ 90%]
+tests/test_sql_ast_validation.py::test_unsafe_transformation_logic_rejected[version()-dept_id] PASSED [ 92%]
+tests/test_sql_ast_validation.py::test_unsafe_transformation_logic_rejected[dept_id; DROP TABLE x-dept_id] PASSED [ 94%]
+tests/test_sql_ast_validation.py::test_unsafe_transformation_logic_rejected[CASE WHEN (SELECT 1) THEN 'x' END-dept_id] PASSED [ 96%]
+tests/test_sql_ast_validation.py::test_ast_validator_reports_the_offending_construct PASSED [ 98%]
+tests/test_validator_column_rekey.py::test_target_columns_rekeyed_to_source_names PASSED [100%]
+
+============================= 53 passed in 6.25s ==============================

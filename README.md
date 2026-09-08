@@ -89,6 +89,20 @@ dbt run --project-dir validation/dbt_models --profiles-dir validation/dbt_models
 dbt test --project-dir validation/dbt_models --profiles-dir validation/dbt_models --vars '{"run_id": "<run_id>"}'
 ```
 
+## Evidence & Scope
+The seed configuration (`seed/seed_db.py`) supports 8 tables / ~106K rows with
+`patient_records` at 12,000 — the "5+ tables / 10,000+ rows on a primary table" bar is met
+by the seed. One **genuine end-to-end run** is committed under
+`evidence/2026-09-06-departments-full-run/` (real Postgres → Snowflake → Groq LLM → dbt),
+but at small scale (1 table, 12 rows) and on an **earlier commit** (`40e93dc`), before the
+final validation-hardening round (`c4f0b3d`). The post-`c4f0b3d` changes (value-distribution
+reconciliation, raw post-extraction check, `sqlglot` AST validation, reviewer identity,
+run-lifecycle + rollback) are covered by the 53-test `pytest` suite — including a
+live-Postgres semantic-execution test — but were **not** re-run as a committed live run, as
+a multi-table run needs LLM quota that wasn't available. Full disclosure, and the exact
+what-ran-vs-didn't breakdown, is in [`SUBMISSION_NOTES.md`](SUBMISSION_NOTES.md); the
+captured test transcript is `evidence/pytest-final.txt`.
+
 ## Human Review
 Low-confidence mappings are written to `data/human_review_queue.json`. Each decision is a JSON object with `mapping_index`, `decision` (`approve`/`reject`/`override`), `override_note`, `reviewer_id`, and `reviewer_role` — `reviewer_id`/`reviewer_role` are required on every decision, and a low-confidence approval/override also requires a non-empty `override_note`. Rejection blocks migration.
 
