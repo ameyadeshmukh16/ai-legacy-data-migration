@@ -81,6 +81,7 @@ class WorkflowService:
         self._status = RunStatus()
         self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
+        self._stop = threading.Event()
 
     # ------------------------------------------------------------------ status
     def status(self) -> RunStatus:
@@ -89,6 +90,12 @@ class WorkflowService:
 
     def is_busy(self) -> bool:
         return self._thread is not None and self._thread.is_alive()
+
+    def request_stop(self) -> None:
+        """Ask the worker to stop after the current node finishes. The graph node
+        already running cannot be interrupted, but no further nodes will run and
+        the run's target tables are rolled back for audit parity."""
+        self._stop.set()
 
     def _set(self, **kw: Any) -> None:
         with self._lock:
@@ -141,6 +148,8 @@ class WorkflowService:
         try:
             interrupted = False
             for chunk in self.app.stream(payload, config=self.cfg, stream_mode="updates"):
+                if self._stop.is_set():
+                    raise RuntimeError("Run aborted by user before completion.")
                 if "__interrupt__" in chunk:
                     payload_value = chunk["__interrupt__"][0].value
                     self._set(phase="awaiting_review", interrupt_payload=payload_value, current_node=None)

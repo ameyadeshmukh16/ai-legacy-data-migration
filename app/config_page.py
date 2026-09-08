@@ -5,7 +5,28 @@ import os
 
 import streamlit as st
 
-from app._common import ALL_TABLES, SEED_ROW_COUNTS, section_missing
+from app._common import ALL_TABLES, SEED_ROW_COUNTS
+
+
+def _missing_credentials(settings) -> list[str]:
+    """Return the names of required config that isn't set. The pipeline needs all
+    of these before a run: the LLM (ai_mapper/rule_generator/doc_generator),
+    Postgres (schema_profiler/executor), Snowflake (executor/validator), and
+    Langfuse (ai_mapper attaches a callback on the worker thread)."""
+    missing = []
+    if not settings.llm_api_key:
+        missing.append("LLM_API_KEY")
+    if not settings.llm_model:
+        missing.append("LLM_MODEL")
+    if not settings.source_db_url:
+        missing.append("SOURCE_DB_URL")
+    if not settings.snowflake_account:
+        missing.append("SNOWFLAKE_ACCOUNT")
+    if not os.getenv("LANGFUSE_PUBLIC_KEY"):
+        missing.append("LANGFUSE_PUBLIC_KEY")
+    if not os.getenv("LANGFUSE_SECRET_KEY"):
+        missing.append("LANGFUSE_SECRET_KEY")
+    return missing
 
 
 def _probe_postgres(url: str) -> tuple[bool, str]:
@@ -73,8 +94,9 @@ def render(ctx) -> None:
     st.divider()
     st.subheader("Run scope")
     st.caption(
-        "Scope and threshold are applied by writing environment variables and rebuilding "
-        "`config.settings` before the pipeline is imported."
+        "Scope & threshold are read from `.env` and applied once when the app launches / a "
+        "run starts. To change them for another run, edit `.env` and restart "
+        "`streamlit run app.py`."
     )
     current = list(settings.tables_to_migrate) or ["departments"]
     tables = st.multiselect(
@@ -100,25 +122,35 @@ def render(ctx) -> None:
 
     st.divider()
     svc = ctx.get("service")
-    busy = bool(svc and svc.is_busy())
-    already = bool(svc and svc.status().phase not in ("idle",))
-    disabled = ctx.get("evidence_mode", False) or busy or not tables
+    phase = svc.status().phase if svc else None
+    run_active = phase in ("running", "awaiting_review", "completed", "failed")
+    missing_env = _missing_credentials(settings)
+
+    if missing_env:
+        st.error(
+            "Cannot start a run — these `.env` variables are unset: "
+            + ", ".join(f"`{k}`" for k in missing_env)
+            + ". Set them and restart the app."
+        )
+
+    disabled = (
+        ctx.get("evidence_mode", False)
+        or not tables
+        or bool(missing_env)
+        or run_active
+    )
 
     if st.button("🚀 Analyze & Start Migration", type="primary", disabled=disabled):
-        if not tables:
-            st.error("Select at least one table.")
-            return
         os.environ["TABLES_TO_MIGRATE"] = ",".join(tables)
         os.environ["CONFIDENCE_THRESHOLD"] = str(threshold)
         ctx["reload_settings"]()
-        ctx["create_service"]()
-        st.session_state["_nav_to"] = "Run Status"
+        new_svc = ctx["create_service"]()
+        new_svc.start()
+        st.session_state["page"] = "Run Status"
         st.rerun()
 
-    if already and not busy:
+    if run_active:
         st.info(
-            f"A run is in progress or finished (`{svc.status().phase}`). "
-            "See **Run Status**. Use *New run* in the sidebar to start another."
+            f"A run is in progress or finished (`{phase}`). See **Run Status**. "
+            "Use *New run* in the sidebar to start another."
         )
-    elif busy:
-        st.info("A run segment is currently executing — see **Run Status**.")

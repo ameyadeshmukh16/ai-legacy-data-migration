@@ -59,6 +59,7 @@ st.sidebar.title("🩺 Migration Assistant")
 mode = st.sidebar.radio(
     "Mode",
     ["Live Run", "Evidence Viewer"],
+    key="mode",
     help="Evidence Viewer renders the committed run with no credentials. "
     "Live Run configures and drives a real migration.",
 )
@@ -82,11 +83,15 @@ if not evidence_mode:
         f"threshold: `{_settings.confidence_threshold:.2f}`"
     )
     if svc:
+        busy = svc.is_busy()
         st.sidebar.caption(f"run: `{run_id}` · {svc.status().phase}")
-        if st.sidebar.button("New run"):
+        if st.sidebar.button("New run", disabled=busy):
+            svc.request_stop()  # ask the worker to stop after its current node + roll back
             st.session_state.pop("service", None)
             st.session_state.pop("run_id", None)
             st.rerun()
+        if busy:
+            st.sidebar.caption("Finish or let the current run fail before starting another.")
 
 PAGES = [
     "Configuration",
@@ -100,10 +105,10 @@ PAGES = [
     "Lineage",
     "Evidence & Scope",
 ]
-default_idx = 0
-if st.session_state.pop("_nav_to", None) in PAGES:
-    default_idx = PAGES.index(st.session_state["_nav_to"]) if "_nav_to" in st.session_state else 0
-page = st.sidebar.radio("Page", PAGES, index=default_idx)
+if "page" not in st.session_state:
+    st.session_state["page"] = "Configuration"
+# A page may set st.session_state["page"] before its st.rerun() to jump here.
+page = st.sidebar.radio("Page", PAGES, key="page")
 
 st.sidebar.divider()
 st.sidebar.caption(

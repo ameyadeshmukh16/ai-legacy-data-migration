@@ -97,7 +97,8 @@ def render(ctx) -> None:
         if ev:
             st.error(f"**{et}** · {ev.get('payload')}")
 
-    # auto-refresh while a segment is executing
+    # auto-refresh while a segment is executing. (Blocks the script thread for the
+    # sleep interval — acceptable for a single-operator demo; kept short.)
     if phase == "running":
-        time.sleep(2)
+        time.sleep(1.5)
         st.rerun()
