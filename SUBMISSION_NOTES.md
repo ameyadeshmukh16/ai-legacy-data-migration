@@ -7,6 +7,11 @@
    credentials in a local `.env` (copy `.env.example`).
 3. To run the pipeline: `docker compose up -d` (source Postgres) → `python -m seed.seed_db`
    → `python -m workflow.langgraph_orchestrator`. See `README.md` § Run.
+4. The recommended way to review or drive the pipeline is the Streamlit app:
+   `streamlit run app.py` (from the repo root). Its **Evidence Viewer** mode needs no
+   credentials and renders the committed run + scope disclosure; **Live Run** mode drives a
+   real migration. The app is a presentation layer and changes no pipeline logic — see
+   `README.md` § Application.
 
 ## Evidence & scope — read this before evaluating the `evidence/` folder
 

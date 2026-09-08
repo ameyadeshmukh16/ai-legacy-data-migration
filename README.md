@@ -65,12 +65,43 @@ Configure LLM, Snowflake and LangFuse credentials in `.env`. Never commit `.env`
 ## Environment Variables
 See `.env.example`. Required variables include `LLM_API_KEY`, `LLM_MODEL`, `SOURCE_DB_URL`, Snowflake credentials, LangFuse credentials and `CONFIDENCE_THRESHOLD`.
 
+## Application
+
+A thin Streamlit control plane wraps the pipeline for demonstration and review. It is a
+**presentation + orchestration layer only** — it renders the pipeline's own artifacts and
+drives the existing LangGraph workflow through its public interface (`build_graph` /
+`invoke` / `Command(resume=…)`). It does not re-implement any mapping, validation,
+execution, audit, or HITL logic, and it modifies no pipeline package. `python -m
+workflow.langgraph_orchestrator` remains the programmatic entrypoint and works unchanged.
+
+```bash
+pip install -r requirements.txt
+streamlit run app.py          # run from the repo root
+```
+
+Two modes (sidebar):
+
+- **Evidence Viewer** — read-only, **needs no credentials**. Renders the committed run under
+  `evidence/2026-09-06-departments-full-run/`, `docs/lineage.md`, and the audit log:
+  schema profile, AI mappings with confidence colour-coding, transformation rules, the
+  validation gate board, the hash-chained audit timeline (with a re-verify button), lineage
+  diagrams, and the seed-capability / scope disclosure.
+- **Live Run** — configure scope + confidence threshold, test the PostgreSQL/Snowflake
+  connections, launch a real migration, and watch it stage-by-stage. When a mapping scores
+  below the threshold the run pauses on the **Human Review** page; submitting decisions
+  (with `reviewer_id` / `reviewer_role`) resumes the graph. Needs the same `.env`
+  credentials as the CLI. The compiled graph is held in the Streamlit session, so a live
+  run must be driven to completion within one server process.
+
+Pages: Configuration · Schema Profile · AI Mappings · Human Review · Rules · Run Status ·
+Validation · Audit Trail · Lineage · Evidence & Scope.
+
 ## Run
 Profile:
 ```bash
 python -m agents.schema_profiler
 ```
-Pipeline:
+Pipeline (programmatic):
 ```bash
 python -m workflow.langgraph_orchestrator
 ```
