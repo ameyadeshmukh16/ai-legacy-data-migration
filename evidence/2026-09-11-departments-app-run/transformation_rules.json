@@ -1,0 +1,73 @@
+[
+  {
+    "source_table": "departments",
+    "target_table": "departments",
+    "source_column": "dept_id",
+    "target_column": "dept_id",
+    "logic": "dept_id",
+    "target_type": "NUMBER",
+    "null_handling": "preserve",
+    "edge_cases": [],
+    "confidence": 0.98,
+    "prompt_id": "6d2555db-54fd-4a1d-860f-a78480b8cd92",
+    "human_reviewed": false,
+    "review_status": "AUTO_APPROVED",
+    "override_note": "Confidence >= threshold; no human review required.",
+    "reviewer_id": null,
+    "reviewer_role": null
+  },
+  {
+    "source_table": "departments",
+    "target_table": "departments",
+    "source_column": "dept_cd",
+    "target_column": "dept_cd",
+    "logic": "dept_cd",
+    "target_type": "STRING",
+    "null_handling": "preserve",
+    "edge_cases": [],
+    "confidence": 0.93,
+    "prompt_id": "10478de7-d591-4cf6-99ef-215463cc23e9",
+    "human_reviewed": false,
+    "review_status": "AUTO_APPROVED",
+    "override_note": "Confidence >= threshold; no human review required.",
+    "reviewer_id": null,
+    "reviewer_role": null
+  },
+  {
+    "source_table": "departments",
+    "target_table": "departments",
+    "source_column": "dept_name",
+    "target_column": "dept_name",
+    "logic": "TRIM(dept_name)",
+    "target_type": "STRING",
+    "null_handling": "preserve",
+    "edge_cases": [
+      "NULL values remain NULL",
+      "Whitespace only strings become empty string"
+    ],
+    "confidence": 0.4,
+    "prompt_id": "cd5c38c9-0bf6-460a-898f-86eb940b517c",
+    "human_reviewed": true,
+    "review_status": "HUMAN_APPROVED",
+    "override_note": "Confirmed: dept_name is the free-text department label; TRIM only, no domain constraint.",
+    "reviewer_id": "reviewer-001",
+    "reviewer_role": "data_sme"
+  },
+  {
+    "source_table": "departments",
+    "target_table": "departments",
+    "source_column": "dept_typ_cd",
+    "target_column": "dept_typ_cd",
+    "logic": "dept_typ_cd",
+    "target_type": "STRING",
+    "null_handling": "preserve",
+    "edge_cases": [],
+    "confidence": 0.85,
+    "prompt_id": "057f8837-c282-4f05-9774-76fd54745897",
+    "human_reviewed": false,
+    "review_status": "AUTO_APPROVED",
+    "override_note": "Confidence >= threshold; no human review required.",
+    "reviewer_id": null,
+    "reviewer_role": null
+  }
+]

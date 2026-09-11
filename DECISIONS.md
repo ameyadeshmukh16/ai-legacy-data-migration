@@ -12,6 +12,13 @@ Auto-approved and human-approved mappings are distinguished explicitly rather th
 - Confidence ≥ threshold → `review_status="AUTO_APPROVED"`, `human_reviewed=false`. An automated confidence gate is not a human review, and the record no longer claims it was one.
 - Human decision → `review_status="HUMAN_APPROVED"` (or `HUMAN_REJECTED`), `human_reviewed=true`, plus `reviewer_id` and `reviewer_role`, which are **required** on every decision submitted to the interrupt resume and are persisted into the approved mapping, the `human_mapping_approved` audit event, and the LangFuse score. This gives the audit trail an accountable identity for each high-risk approval — a prerequisite for the reviewer-qualification routing described under Medication and Free-Text Clinical Fields.
 
+In practice, reviewer decisions are submitted through the Streamlit app's Human Review
+page (`app/review_page.py`), which collects `reviewer_id`/`reviewer_role` and calls
+`Command(resume=...)` via `WorkflowService` — this is the actual interaction surface used
+in `evidence/2026-09-11-departments-app-run/`. The raw stdin/JSON path in
+`workflow/langgraph_orchestrator.py`'s `__main__` block remains the equivalent
+programmatic/CLI entrypoint; both submit to the same `human_review_gate` interrupt contract.
+
 **Realistic human override examples from this schema:**
 - `blood_grp_cd` (confidence ~0.68): AI proposes `'AP'` → `'A+'` etc. based on code-shape pattern matching. A domain expert override note would read something like *"Confirmed AP/AN/BP/BN/OP/ON/ABP/ABN map to standard blood group notation — verified against hospital lab reference sheet."* Without that confirmation, the mapping cannot execute.
 - `appointments.pri_lvl` (confidence ~0.55): a bare integer 1–5 with no documented direction. AI can propose a mapping but cannot know whether 1 means highest or lowest priority. Override note: *"Confirmed with scheduling team: 1 = highest priority (matches legacy triage convention)."*

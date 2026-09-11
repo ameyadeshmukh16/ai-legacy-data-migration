@@ -1,0 +1,62 @@
+[
+  {
+    "source_table": "departments",
+    "source_column": "dept_id",
+    "target_table": "departments",
+    "target_column": "dept_id",
+    "inferred_meaning": "Unique identifier for each department (primary key)",
+    "transformation_rule": "Direct copy; no transformation required",
+    "null_handling": "preserve (no nulls)",
+    "edge_cases": [],
+    "confidence": 0.98,
+    "reasoning": "The column is a BIGINT with a sample of sequential integers, zero null rate, and low cardinality consistent with a primary key. No transformation or null handling is needed, so the mapping can be a direct copy to the same table and column name.",
+    "prompt_id": "ccc90810-de3c-4724-98dd-6179c18c29ca"
+  },
+  {
+    "source_table": "departments",
+    "source_column": "dept_cd",
+    "target_table": "departments",
+    "target_column": "dept_cd",
+    "inferred_meaning": "department code identifier",
+    "transformation_rule": "direct copy (no transformation)",
+    "null_handling": "no null values; preserve as is",
+    "edge_cases": [
+      "potential future codes not represented in sample"
+    ],
+    "confidence": 0.93,
+    "reasoning": "The source column dept_cd contains alphanumeric department codes. No nulls are present and the sample values illustrate the typical format. With no target schema provided, the safest approach is to map to the same table and column name, applying a direct copy. This mapping is highly confident but retains a modest uncertainty due to possible unseen future code formats.",
+    "prompt_id": "d3a0e46f-d5fd-4f4d-94bb-b7844d9a3009"
+  },
+  {
+    "source_table": "departments",
+    "source_column": "dept_name",
+    "target_table": "departments",
+    "target_column": "dept_name",
+    "inferred_meaning": "Name of the department (e.g., medical specialty or organizational unit)",
+    "transformation_rule": "Trim surrounding whitespace; keep original string; store as VARCHAR preserving case",
+    "null_handling": "No nulls present; load as is",
+    "edge_cases": [
+      "Values contain commas, hyphens, and conjunctions (e.g., 'Smith, Rowland and Clayton') which may affect downstream parsing",
+      "Some entries appear to be company names rather than department names"
+    ],
+    "confidence": 0.4,
+    "reasoning": "The column name and sample values suggest department names, but several values look like company names, making the exact business meaning uncertain. No nulls, so straightforward load. Because of mixed content, confidence is moderate.",
+    "prompt_id": "4f6dea21-1a06-4eed-8a57-b75478d5b8ec"
+  },
+  {
+    "source_table": "departments",
+    "source_column": "dept_typ_cd",
+    "target_table": "departments",
+    "target_column": "dept_typ_cd",
+    "inferred_meaning": "Department type code indicating the category of a department (e.g., Inpatient (IPD), Intensive Care Unit (ICU), Surgery (SRG), Emergency (ER))",
+    "transformation_rule": "Direct copy of the source value; no transformation required",
+    "null_handling": "No null values present; preserve values as\u2011is",
+    "edge_cases": [
+      "Unexpected or new department codes not seen in sample",
+      "Potential future expansion of department types"
+    ],
+    "confidence": 0.85,
+    "reasoning": "The sample values correspond to known hospital department abbreviations, allowing a confident inference that the column stores a department type code. No nulls are present, and the values are already in the desired format, so a direct copy is appropriate. Confidence is high but not absolute because the full code list may include additional values not represented in the sample.",
+    "prompt_id": "55d02fd7-5d18-481e-9381-4b5bed6564bf"
+  }
+]

@@ -1,0 +1,11 @@
+[
+  {
+    "mapping_index": 2,
+    "source_table": "departments",
+    "source_column": "dept_name",
+    "target_table": "departments",
+    "target_column": "dept_name",
+    "confidence": 0.4,
+    "reasoning": "The column name and sample values suggest department names, but several values look like company names, making the exact business meaning uncertain. No nulls, so straightforward load. Because of mixed content, confidence is moderate."
+  }
+]

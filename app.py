@@ -68,9 +68,10 @@ evidence_mode = mode == "Evidence Viewer"
 from config.settings import settings as _settings  # noqa: E402  (after chdir/syspath)
 
 if evidence_mode:
-    from app._common import EVIDENCE_DIR
+    from app._common import EVIDENCE_RUNS
 
-    base_dir = EVIDENCE_DIR
+    run_label = st.sidebar.selectbox("Evidence run", list(EVIDENCE_RUNS), key="evidence_run")
+    base_dir = EVIDENCE_RUNS[run_label]
 else:
     base_dir = REPO_ROOT / "data"
 

@@ -1,0 +1,286 @@
+[
+  {
+    "event_id": "325df122-ed65-4367-b4b7-00caf02e8410",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:39:44.796166+00:00",
+    "event_type": "run_started",
+    "payload": {
+      "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+      "tables": [
+        "departments"
+      ]
+    },
+    "previous_hash": "d371154a8efadc78840404abd3b6373255604f210b06cdf3e2f6e3ffba5095c0",
+    "hash": "2cc45f14c804bcc93aca07af598a0a8b765eb201cdf8aa78e3e87b54274d0015"
+  },
+  {
+    "event_id": "fb31d3b6-acd2-4984-8426-63b6b48dc3fb",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:39:45.063268+00:00",
+    "event_type": "schema_profiler_completed",
+    "payload": {
+      "tables": [
+        "departments"
+      ]
+    },
+    "previous_hash": "2cc45f14c804bcc93aca07af598a0a8b765eb201cdf8aa78e3e87b54274d0015",
+    "hash": "c178be70f2b7b6b920f9c6bd9938f40265b7bf41b6f2cabc1cd57ef31dc6d341"
+  },
+  {
+    "event_id": "b3ae119d-5e9f-4b8a-aadb-fe3466acdde5",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:39:45.205289+00:00",
+    "event_type": "gx_source_baseline_completed",
+    "payload": {
+      "passed": true
+    },
+    "previous_hash": "c178be70f2b7b6b920f9c6bd9938f40265b7bf41b6f2cabc1cd57ef31dc6d341",
+    "hash": "152751c8796cc4f2d7fb8c6a2e08a8973670dcbfaeeeed4d4f9efc1acc510b2e"
+  },
+  {
+    "event_id": "465bb682-b4d7-4798-b44c-92302140be34",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:39:50.917457+00:00",
+    "event_type": "ai_mapping_suggestion",
+    "payload": {
+      "prompt_id": "ccc90810-de3c-4724-98dd-6179c18c29ca",
+      "source_table": "departments",
+      "source_column": "dept_id",
+      "target_table": "departments",
+      "target_column": "dept_id",
+      "confidence": 0.98,
+      "reasoning": "The column is a BIGINT with a sample of sequential integers, zero null rate, and low cardinality consistent with a primary key. No transformation or null handling is needed, so the mapping can be a direct copy to the same table and column name."
+    },
+    "previous_hash": "152751c8796cc4f2d7fb8c6a2e08a8973670dcbfaeeeed4d4f9efc1acc510b2e",
+    "hash": "1febe54c1e6cc8b7b6de887c578cbf2c77b121931160548e05ca070eb2b0602d"
+  },
+  {
+    "event_id": "dbf01619-de26-4378-af43-cc272812f3d8",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:39:52.610550+00:00",
+    "event_type": "ai_mapping_suggestion",
+    "payload": {
+      "prompt_id": "d3a0e46f-d5fd-4f4d-94bb-b7844d9a3009",
+      "source_table": "departments",
+      "source_column": "dept_cd",
+      "target_table": "departments",
+      "target_column": "dept_cd",
+      "confidence": 0.93,
+      "reasoning": "The source column dept_cd contains alphanumeric department codes. No nulls are present and the sample values illustrate the typical format. With no target schema provided, the safest approach is to map to the same table and column name, applying a direct copy. This mapping is highly confident but retains a modest uncertainty due to possible unseen future code formats."
+    },
+    "previous_hash": "1febe54c1e6cc8b7b6de887c578cbf2c77b121931160548e05ca070eb2b0602d",
+    "hash": "30dfc82d905e0267bfe8a07a16948409afb160ce54af299a9d07a71264451c7c"
+  },
+  {
+    "event_id": "d8293cd3-25ec-40fd-86f2-4cfb3e02cbae",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:39:54.490941+00:00",
+    "event_type": "ai_mapping_suggestion",
+    "payload": {
+      "prompt_id": "4f6dea21-1a06-4eed-8a57-b75478d5b8ec",
+      "source_table": "departments",
+      "source_column": "dept_name",
+      "target_table": "departments",
+      "target_column": "dept_name",
+      "confidence": 0.4,
+      "reasoning": "The column name and sample values suggest department names, but several values look like company names, making the exact business meaning uncertain. No nulls, so straightforward load. Because of mixed content, confidence is moderate."
+    },
+    "previous_hash": "30dfc82d905e0267bfe8a07a16948409afb160ce54af299a9d07a71264451c7c",
+    "hash": "1694d3023a9ed43f061e77e0b998358e97d887ec6db767c8e0cdde39d49bde73"
+  },
+  {
+    "event_id": "227c4e18-7c38-40c5-b5d3-41836ca0978a",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:39:56.099450+00:00",
+    "event_type": "ai_mapping_suggestion",
+    "payload": {
+      "prompt_id": "55d02fd7-5d18-481e-9381-4b5bed6564bf",
+      "source_table": "departments",
+      "source_column": "dept_typ_cd",
+      "target_table": "departments",
+      "target_column": "dept_typ_cd",
+      "confidence": 0.85,
+      "reasoning": "The sample values correspond to known hospital department abbreviations, allowing a confident inference that the column stores a department type code. No nulls are present, and the values are already in the desired format, so a direct copy is appropriate. Confidence is high but not absolute because the full code list may include additional values not represented in the sample."
+    },
+    "previous_hash": "1694d3023a9ed43f061e77e0b998358e97d887ec6db767c8e0cdde39d49bde73",
+    "hash": "1db702f995b0b337c088a2195e3c890a622d7f85f2b9fcc676c398351d2cec5f"
+  },
+  {
+    "event_id": "2c508b89-465d-4899-90a6-9675a9c6fdaa",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:43:09.907135+00:00",
+    "event_type": "human_mapping_approved",
+    "payload": {
+      "mapping_index": 2,
+      "source_column": "dept_name",
+      "decision": "approve",
+      "override_note": "Confirmed: dept_name is the free-text department label; TRIM only, no domain constraint.",
+      "reviewer_id": "reviewer-001",
+      "reviewer_role": "data_sme"
+    },
+    "previous_hash": "1db702f995b0b337c088a2195e3c890a622d7f85f2b9fcc676c398351d2cec5f",
+    "hash": "9440dd02b2df6ab090b58e7291270d02418e88813f02f7c597c68af4b3585519"
+  },
+  {
+    "event_id": "7778e6c2-61f6-4475-8bb8-9ec8e6cffcaa",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:43:11.628355+00:00",
+    "event_type": "transformation_rule_generated",
+    "payload": {
+      "prompt_id": "6d2555db-54fd-4a1d-860f-a78480b8cd92",
+      "source_column": "dept_id",
+      "target_column": "dept_id",
+      "confidence": 0.98,
+      "human_reviewed": false,
+      "review_status": "AUTO_APPROVED",
+      "reviewer_id": null,
+      "reviewer_role": null
+    },
+    "previous_hash": "9440dd02b2df6ab090b58e7291270d02418e88813f02f7c597c68af4b3585519",
+    "hash": "f028bbfe936cef3792eab34e8c8832f08ef2217334402a502af7cc67b33a3fda"
+  },
+  {
+    "event_id": "4b2f5aaa-b35f-4e3b-b33d-0373de21ee85",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:43:13.027819+00:00",
+    "event_type": "transformation_rule_generated",
+    "payload": {
+      "prompt_id": "10478de7-d591-4cf6-99ef-215463cc23e9",
+      "source_column": "dept_cd",
+      "target_column": "dept_cd",
+      "confidence": 0.93,
+      "human_reviewed": false,
+      "review_status": "AUTO_APPROVED",
+      "reviewer_id": null,
+      "reviewer_role": null
+    },
+    "previous_hash": "f028bbfe936cef3792eab34e8c8832f08ef2217334402a502af7cc67b33a3fda",
+    "hash": "a12942139de53f48d6a1d78f16de056f0457fc9fbc02aede45fa39e82e88c8c2"
+  },
+  {
+    "event_id": "6cec5fe9-0ec3-487e-9600-b4d2bcca5209",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:43:14.713428+00:00",
+    "event_type": "transformation_rule_generated",
+    "payload": {
+      "prompt_id": "cd5c38c9-0bf6-460a-898f-86eb940b517c",
+      "source_column": "dept_name",
+      "target_column": "dept_name",
+      "confidence": 0.4,
+      "human_reviewed": true,
+      "review_status": "HUMAN_APPROVED",
+      "reviewer_id": "reviewer-001",
+      "reviewer_role": "data_sme"
+    },
+    "previous_hash": "a12942139de53f48d6a1d78f16de056f0457fc9fbc02aede45fa39e82e88c8c2",
+    "hash": "8a877a3430d8f90d72f6f0f834fdc128642e7d883155e5cccc8f2e50d17576cc"
+  },
+  {
+    "event_id": "9e5f4c10-5298-4496-845f-11cb0fe408b6",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:43:16.310068+00:00",
+    "event_type": "transformation_rule_generated",
+    "payload": {
+      "prompt_id": "057f8837-c282-4f05-9774-76fd54745897",
+      "source_column": "dept_typ_cd",
+      "target_column": "dept_typ_cd",
+      "confidence": 0.85,
+      "human_reviewed": false,
+      "review_status": "AUTO_APPROVED",
+      "reviewer_id": null,
+      "reviewer_role": null
+    },
+    "previous_hash": "8a877a3430d8f90d72f6f0f834fdc128642e7d883155e5cccc8f2e50d17576cc",
+    "hash": "7192c411fb4850ae1ffb2c4b9e82a36641d3a6883d4bc77014efb80a2ddef62b"
+  },
+  {
+    "event_id": "2ef7608e-1c84-4559-b5b3-9e4ad28229f9",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:43:21.392334+00:00",
+    "event_type": "table_loaded",
+    "payload": {
+      "source_table": "departments",
+      "target_table": "\"MIGRATION_STAGE\".\"departments_a620702f_1714_4ce8_88c9_6a24757b7733\"",
+      "row_count": 12,
+      "extract_sql": "SELECT \"dept_id\", \"dept_cd\", \"dept_name\", \"dept_typ_cd\" FROM \"departments\"",
+      "select_sql": "SELECT (dept_id) AS \"dept_id\", (dept_cd) AS \"dept_cd\", (TRIM(dept_name)) AS \"dept_name\", (dept_typ_cd) AS \"dept_typ_cd\" FROM \"departments\""
+    },
+    "previous_hash": "7192c411fb4850ae1ffb2c4b9e82a36641d3a6883d4bc77014efb80a2ddef62b",
+    "hash": "4c98151aab96615a5c9b5cb9303dfdb6a33af079eb80d3467cfa421861d85dbd"
+  },
+  {
+    "event_id": "8e58e3a4-5eb9-4925-bed2-b50d742b1c3e",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:43:22.704809+00:00",
+    "event_type": "gx_post_load_completed",
+    "payload": {
+      "passed": true
+    },
+    "previous_hash": "4c98151aab96615a5c9b5cb9303dfdb6a33af079eb80d3467cfa421861d85dbd",
+    "hash": "710cc669323e5e80b80db2f5a8e040597399d46c2acb288276090c3f98557443"
+  },
+  {
+    "event_id": "da240df7-50e7-4b59-8ba2-de54e3aae39c",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:43:27.041143+00:00",
+    "event_type": "validation_completed",
+    "payload": {
+      "passed": true
+    },
+    "previous_hash": "710cc669323e5e80b80db2f5a8e040597399d46c2acb288276090c3f98557443",
+    "hash": "9e245e007bda25e0880a6eccb0359ae75e8b69d92e0caed730eb78a0262fdfe5"
+  },
+  {
+    "event_id": "9859d698-e8d3-449b-aa91-7ed31a43c95f",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:43:30.055720+00:00",
+    "event_type": "distribution_reconciliation_completed",
+    "payload": {
+      "passed": true,
+      "columns_checked": 1,
+      "columns_skipped": 3
+    },
+    "previous_hash": "9e245e007bda25e0880a6eccb0359ae75e8b69d92e0caed730eb78a0262fdfe5",
+    "hash": "ccf37ac63f203bd59cd5cd390b2ee9e8516f9f1f6f56c733f6bc9d0001165128"
+  },
+  {
+    "event_id": "a8fa53c8-fcb3-41eb-abcb-95f4947efc79",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:44:09.590042+00:00",
+    "event_type": "dbt_validation_completed",
+    "payload": {
+      "steps": [
+        "seed",
+        "run",
+        "test"
+      ]
+    },
+    "previous_hash": "ccf37ac63f203bd59cd5cd390b2ee9e8516f9f1f6f56c733f6bc9d0001165128",
+    "hash": "af2ef23ad10015a5c7d8ea4a301290c77136e5cc7aa08cece14b6a432242b0e6"
+  },
+  {
+    "event_id": "d614e5ad-8ba0-423d-84e0-adcc50cc7d47",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:44:11.410309+00:00",
+    "event_type": "documentation_generated",
+    "payload": {
+      "output": "data\\target_data_dictionary.md"
+    },
+    "previous_hash": "af2ef23ad10015a5c7d8ea4a301290c77136e5cc7aa08cece14b6a432242b0e6",
+    "hash": "befeeac288e9bc74199b46470b30ec4a98922d455ff34206f8dff1bc1d97ac6e"
+  },
+  {
+    "event_id": "ba5065aa-8f77-4c1c-ae3a-c61c69651a9e",
+    "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+    "timestamp": "2026-09-11T03:44:11.426075+00:00",
+    "event_type": "run_completed",
+    "payload": {
+      "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+      "status": "completed",
+      "validation_passed": true,
+      "distribution_reconciliation_passed": true
+    },
+    "previous_hash": "befeeac288e9bc74199b46470b30ec4a98922d455ff34206f8dff1bc1d97ac6e",
+    "hash": "4532dd4e2ee429536430f79e1a1cd117c832f915bf4d2269239da22fea18e249"
+  }
+]

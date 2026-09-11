@@ -382,6 +382,37 @@ Fixed all of these (`migration/executor.py` rewritten for rule-driven transforma
 
 ---
 
+## Application Layer (branch `application-layer-implementation`, done)
+
+Added a thin Streamlit control plane (`app.py`, `app/*.py`, `services/workflow_service.py`)
+on top of the unmodified LangGraph pipeline — a presentation/orchestration layer only, no
+mapping/validation/execution/audit/HITL logic re-implemented. `WorkflowService` drives the
+same `build_graph()`/`invoke`/`Command(resume=...)` interface the CLI uses, in a background
+thread, with a polled status object for the UI's stage checklist.
+
+Two integration bugs were found and fixed only by actually clicking through the running
+app (headless `AppTest` coverage had missed both, since it seeds `session_state` before a
+script run rather than exercising a page writing to it mid-run):
+- The Configuration page's Start button built a `WorkflowService` but never called
+  `.start()` — no run could ever begin. Fixed in `69a62aa`.
+- A page setting `st.session_state["page"]` to jump to another page raised
+  `StreamlitWidgetAlreadyInstantiatedError`, because the sidebar's keyed `page` radio has
+  already been instantiated earlier in the same script run by the time a page's `render()`
+  executes. Fixed in `8db88b9` by routing jumps through a separate `_pending_page` key that
+  `app.py` applies to `page` *before* the radio widget is created.
+
+**Verification performed** (against real Postgres/Snowflake/Groq, via the running app, not
+mocks): a full `departments` migration driven end-to-end through the Streamlit UI —
+Configuration → Start → paused at `human_review_gate` → Human Review form (reviewer_id
+`reviewer-001`, role `data_sme`) → resume → `rule_generator` → `migration_executor` →
+`validator` (GX post-load, reconciliation, **value-distribution reconciliation**, dbt) →
+`doc_generator` → "Run completed." 19-event hash-chained audit trail, Snowflake target
+table independently queried post-run (12 rows, correctly transformed). Committed as
+`evidence/2026-09-11-departments-app-run/` — the first committed live run on the fully
+hardened (`c4f0b3d`) code, closing the gap the `2026-09-06` evidence run's README flagged.
+
+---
+
 ## Execution Order with Claude Code
 
 Build in this sequence to minimize blocked time:

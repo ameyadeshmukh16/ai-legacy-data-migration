@@ -1,0 +1,78 @@
+{
+  "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+  "source_baseline": {
+    "departments": {
+      "row_count": 12,
+      "columns": {
+        "dept_id": {
+          "null_rate": 0.0,
+          "cardinality": 12
+        },
+        "dept_cd": {
+          "null_rate": 0.0,
+          "cardinality": 12
+        },
+        "dept_name": {
+          "null_rate": 0.0,
+          "cardinality": 12
+        },
+        "dept_typ_cd": {
+          "null_rate": 0.0,
+          "cardinality": 4
+        }
+      }
+    }
+  },
+  "post_extraction": {
+    "passed": true
+  },
+  "post_load": {},
+  "tables": {
+    "departments": {
+      "source": {
+        "row_count": 12,
+        "columns": {
+          "dept_id": {
+            "null_rate": 0.0,
+            "cardinality": 12
+          },
+          "dept_cd": {
+            "null_rate": 0.0,
+            "cardinality": 12
+          },
+          "dept_name": {
+            "null_rate": 0.0,
+            "cardinality": 12
+          },
+          "dept_typ_cd": {
+            "null_rate": 0.0,
+            "cardinality": 4
+          }
+        }
+      },
+      "target": {
+        "row_count": 12,
+        "columns": {
+          "dept_id": {
+            "null_rate": 0.0,
+            "cardinality": 12
+          },
+          "dept_cd": {
+            "null_rate": 0.0,
+            "cardinality": 12
+          },
+          "dept_name": {
+            "null_rate": 0.0,
+            "cardinality": 12
+          },
+          "dept_typ_cd": {
+            "null_rate": 0.0,
+            "cardinality": 4
+          }
+        }
+      },
+      "row_count_match": true
+    }
+  },
+  "passed": true
+}

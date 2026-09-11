@@ -16,7 +16,18 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = REPO_ROOT / "data"
 DOCS_DIR = REPO_ROOT / "docs"
 AUDIT_LOG = REPO_ROOT / "audit" / "migration_audit_log.json"
-EVIDENCE_DIR = REPO_ROOT / "evidence" / "2026-09-06-departments-full-run"
+
+# Committed evidence runs, most recent / most complete first. The first entry is
+# the default shown in Evidence Viewer mode.
+EVIDENCE_RUNS = {
+    "2026-09-11 — departments, via app, fully hardened code": REPO_ROOT
+    / "evidence"
+    / "2026-09-11-departments-app-run",
+    "2026-09-06 — departments, via CLI, pre-hardening code": REPO_ROOT
+    / "evidence"
+    / "2026-09-06-departments-full-run",
+}
+EVIDENCE_DIR = next(iter(EVIDENCE_RUNS.values()))
 
 ALL_TABLES = [
     "departments",
@@ -161,9 +172,16 @@ def render_lineage_markdown(md_text: str) -> None:
 
 
 # ------------------------------------------------------------- hash-chain check
-def verify_hash_chain(events: list[dict]) -> tuple[bool, str]:
-    """Re-verify the SHA-256 audit hash chain (same logic as the evidence README)."""
-    prev = "GENESIS"
+def verify_hash_chain(events: list[dict], require_genesis: bool = True) -> tuple[bool, str]:
+    """Re-verify the SHA-256 audit hash chain (same logic as the evidence README).
+
+    A run-scoped snapshot (e.g. an evidence folder's audit_log_snapshot.json for a
+    run that happened after other runs) chains onto events not included in the
+    slice, so its first previous_hash is not "GENESIS" — pass require_genesis=False
+    to verify such a slice is internally consistent instead."""
+    if not events:
+        return False, "No events to verify."
+    prev = "GENESIS" if require_genesis else events[0].get("previous_hash")
     for i, e in enumerate(events):
         if e.get("previous_hash") != prev:
             return False, f"Event {i} ({e.get('event_type')}): previous_hash mismatch."
@@ -176,7 +194,9 @@ def verify_hash_chain(events: list[dict]) -> tuple[bool, str]:
         if e.get("hash") != expected:
             return False, f"Event {i} ({e.get('event_type')}): hash mismatch."
         prev = e["hash"]
-    return True, f"Hash chain verified intact across all {len(events)} events."
+    if require_genesis:
+        return True, f"Hash chain verified intact across all {len(events)} events."
+    return True, f"This run's {len(events)} events chain together correctly (anchored mid-log, not at GENESIS)."
 
 
 def section_missing(msg: str) -> None:

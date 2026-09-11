@@ -1,0 +1,49 @@
+{
+  "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+  "columns": {
+    "departments.dept_id -> dept_id": {
+      "status": "SKIPPED_IDENTITY"
+    },
+    "departments.dept_cd -> dept_cd": {
+      "status": "SKIPPED_IDENTITY"
+    },
+    "departments.dept_name -> dept_name": {
+      "status": "PASS",
+      "expected_distribution": {
+        "Cardiology": 1,
+        "Smith and Sons": 1,
+        "Taylor, Bridges and Hudson": 1,
+        "Price, Morris and Griffin": 1,
+        "Orthopedics": 1,
+        "Smith LLC": 1,
+        "Dudley-Bennett": 1,
+        "Knight-Wood": 1,
+        "Smith, Rowland and Clayton": 1,
+        "Lang, Bennett and Wilson": 1,
+        "Walker-Gonzalez": 1,
+        "Massey, Parks and Terry": 1
+      },
+      "actual_distribution": {
+        "Walker-Gonzalez": 1,
+        "Cardiology": 1,
+        "Price, Morris and Griffin": 1,
+        "Knight-Wood": 1,
+        "Dudley-Bennett": 1,
+        "Taylor, Bridges and Hudson": 1,
+        "Massey, Parks and Terry": 1,
+        "Smith, Rowland and Clayton": 1,
+        "Smith and Sons": 1,
+        "Orthopedics": 1,
+        "Smith LLC": 1,
+        "Lang, Bennett and Wilson": 1
+      },
+      "mismatches": []
+    },
+    "departments.dept_typ_cd -> dept_typ_cd": {
+      "status": "SKIPPED_IDENTITY"
+    }
+  },
+  "passed": true,
+  "checked": 1,
+  "skipped": 3
+}

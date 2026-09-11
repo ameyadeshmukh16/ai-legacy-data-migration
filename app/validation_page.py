@@ -9,7 +9,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from app._common import EVIDENCE_DIR, load_audit_events, load_json, section_missing, status_pill
+from app._common import load_audit_events, load_json, section_missing, status_pill
 
 
 def _gx_passed(base_dir, fname):
@@ -21,7 +21,7 @@ def _gx_passed(base_dir, fname):
 
 def _audit_events(ctx):
     if ctx.get("evidence_mode"):
-        return load_json(EVIDENCE_DIR, "audit_log_snapshot.json") or []
+        return load_json(ctx["base_dir"], "audit_log_snapshot.json") or []
     return load_audit_events(ctx.get("run_id"))
 
 
@@ -90,14 +90,15 @@ def render(ctx) -> None:
         return
 
     any_fail = any(v is False for _, v in gates)
+    unknown = [name for name, v in gates if v is None]
     known = [v for _, v in gates if v is not None]
     if any_fail:
         st.error("MIGRATION BLOCKED — at least one validation gate failed.")
-    elif ctx.get("evidence_mode") and all(v is True for v in known):
+    elif unknown and ctx.get("evidence_mode") and all(v is True for v in known):
         st.success(
-            "Every gate captured in this run passed. Gates marked *n/a* "
-            "(distribution reconciliation, and the dbt FK-integrity zero-row test) were "
-            "added after this evidence run — see **Evidence & Scope**."
+            "Every gate captured in this run passed. Gates marked *n/a* ("
+            + ", ".join(unknown)
+            + ") were added after this evidence run — see **Evidence & Scope**."
         )
     elif all(v is True for _, v in gates):
         st.success("All validation gates passed.")

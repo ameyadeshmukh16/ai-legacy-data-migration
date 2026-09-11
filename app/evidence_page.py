@@ -5,16 +5,17 @@ import json
 
 import streamlit as st
 
-from app._common import EVIDENCE_DIR, REPO_ROOT, SEED_ROW_COUNTS, load_text
+from app._common import REPO_ROOT, SEED_ROW_COUNTS, load_text
 
 
 def render(ctx) -> None:
     st.header("Evidence & Scope")
+    evidence_dir = ctx["base_dir"]
 
     st.info(
-        "**This is a genuine but small-scale run, captured on an earlier commit.** "
-        "It is not a full 5-table / 10K-row run and not output of the final hardened code. "
-        "See the version note below and `SUBMISSION_NOTES.md`."
+        "Two committed live runs are available (pick one in the sidebar). Neither is a "
+        "full 5-table / 10K-row run — see the seed capability below and "
+        "`SUBMISSION_NOTES.md` for the full scope disclosure."
     )
 
     c1, c2 = st.columns(2)
@@ -31,19 +32,19 @@ def render(ctx) -> None:
         st.caption("Primary table `patient_records` = 12,000 rows → meets the 10K+ bar.")
     with c2:
         st.subheader("Committed live run")
-        rd = load_text(EVIDENCE_DIR / "README.md")
+        rd = load_text(evidence_dir / "README.md")
         if rd:
             # show just the version note + header for brevity
             st.markdown(rd)
 
     st.divider()
     st.subheader("Artifact browser")
-    files = sorted(p.name for p in EVIDENCE_DIR.glob("*") if p.is_file())
+    files = sorted(p.name for p in evidence_dir.glob("*") if p.is_file())
     if not files:
         st.warning("Evidence directory not found.")
         return
     pick = st.selectbox("File", files)
-    path = EVIDENCE_DIR / pick
+    path = evidence_dir / pick
     text = load_text(path)
     if pick.endswith(".json"):
         try:

@@ -25,34 +25,37 @@ free-text clinical fields).
 
 ### What HAS been executed live
 
-One genuine end-to-end run is committed: `evidence/2026-09-06-departments-full-run/`
-(`run_id=1f0fef8a-...`, 2026-09-06). Real Postgres source, real Snowflake target, real Groq
-LLM calls, real dbt. It exercised: schema profiling → GX source baseline → AI mapping →
-confidence gate → HITL pause/resume via `Command(resume=...)` → deterministic rule
-generation → rule-driven execution into Snowflake (`TRIM(dept_name)`, `dept_typ_cd` →
-`department_type_code` rename, verified in the real target table) → all 3 GX checkpoints →
-reconciliation → dbt seed/run/test → data-dictionary generation → 16-event hash-chained
-audit log (chain independently re-verifiable with the snippet in that folder's README).
+**Two** genuine end-to-end runs are committed.
 
-**Scale of that run: 1 table (`departments`), 12 rows.** It was scoped down to fit the
-free-tier LLM rate limit available that day.
+**`evidence/2026-09-11-departments-app-run/`** (`run_id=a620702f-...`, 2026-09-11) — the
+**fully hardened pipeline**, driven **live through the Streamlit application** (Configuration
+→ Start → pause at `human_review_gate` → Human Review form → resume → completion). Real
+Postgres source, real Snowflake target, real Groq LLM calls, real dbt. It exercised
+everything the earlier run did, *plus* every post-`c4f0b3d` addition: value-distribution
+reconciliation (passed), GX post-extraction on the raw pre-transform extract, `sqlglot`
+AST-validated transformation logic, `reviewer_id`/`reviewer_role` captured on the human
+decision, explicit `review_status`, and the `run_started`/`run_completed` lifecycle events.
+19-event hash-chained audit trail (independently re-verifiable per that folder's README, or
+via the app's Audit Trail page). **Code version: commit `8db88b9`** (the app-layer
+control-flow fixes, on top of `c4f0b3d`).
 
-**Code version of that run: commit `40e93dc`** — *before* the final hardening round
-(`c4f0b3d`).
+**`evidence/2026-09-06-departments-full-run/`** (`run_id=1f0fef8a-...`, 2026-09-06) — an
+earlier run via the CLI (`python -m workflow.langgraph_orchestrator`), on commit `40e93dc`,
+*before* the hardening round. Kept for provenance; superseded by the run above for anything
+concerning the final code.
+
+**Scale of both runs: 1 table (`departments`), 12 rows.** Scoped down to fit the free-tier
+LLM rate limit available that day.
 
 ### What has NOT been executed live
 
-- A run at 5+ table / 10,000+ row scale.
-- Any run on the final hardened code (`c4f0b3d`), which added: value-distribution
-  reconciliation, GX post-extraction on raw pre-transform data with a real column-drop
-  check, `sqlglot` AST validation of transformation logic, `reviewer_id`/`reviewer_role` on
-  human decisions, explicit `review_status`, and `run_started`/`run_completed`/`run_failed`/
-  `run_rolled_back` lifecycle events with automatic rollback of run-scoped Snowflake tables.
+- A run at 5+ table / 10,000+ row scale. This is the one remaining gap — everything else
+  the final code does has now been exercised live (see above), just not yet at that scale.
 
 **Reason:** a multi-table run needs ~20–30 minutes of uninterrupted free-tier LLM quota,
 which was not available, and no paid LLM credits were on hand to substitute.
 
-### How the un-re-run changes are verified instead
+### How everything else is verified
 
 - **`pytest` — 53 tests, all passing** (`evidence/pytest-final.txt`, captured in the
   project venv). New/changed coverage: `tests/test_sql_ast_validation.py` (16),
@@ -68,11 +71,13 @@ which was not available, and no paid LLM credits were on hand to substitute.
   the vacuous `accepted_values` tests are gone.
 - Distribution-reconciler diff logic is unit-tested for both the passing and the
   count-drift-FAIL path (`tests/test_semantic_e2e.py`), with the Snowflake-side query
-  stubbed.
+  stubbed — **and** now also confirmed passing against a real Snowflake target in the
+  2026-09-11 live run.
 
 ### Explicit non-claim
 
-**No full-scale production migration was executed. Do not read the `evidence/` folder as a
-5-table / 10K-row run, and do not read it as output of the final code.** It is a genuine
-small-scale end-to-end execution of an earlier revision; the delta to the final code is
-covered by the automated tests listed above.
+**No full-scale (5+ table / 10,000+ row) production migration was executed.** Both
+committed `evidence/` runs are single-table (`departments`, 12 rows). The 2026-09-11 run
+does, however, genuinely exercise the final hardened code end to end, live, through the
+Streamlit application — it is not a small-scale stand-in for untested functionality, only
+for untested *scale*.

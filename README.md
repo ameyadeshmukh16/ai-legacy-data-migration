@@ -81,17 +81,23 @@ streamlit run app.py          # run from the repo root
 
 Two modes (sidebar):
 
-- **Evidence Viewer** — read-only, **needs no credentials**. Renders the committed run under
-  `evidence/2026-09-06-departments-full-run/`, `docs/lineage.md`, and the audit log:
-  schema profile, AI mappings with confidence colour-coding, transformation rules, the
-  validation gate board, the hash-chained audit timeline (with a re-verify button), lineage
-  diagrams, and the seed-capability / scope disclosure.
-- **Live Run** — configure scope + confidence threshold, test the PostgreSQL/Snowflake
-  connections, launch a real migration, and watch it stage-by-stage. When a mapping scores
+- **Evidence Viewer** — read-only, **needs no credentials**. A sidebar picker switches
+  between the two committed runs: `evidence/2026-09-11-departments-app-run/` (the fully
+  hardened code, driven live through this app — the default) and
+  `evidence/2026-09-06-departments-full-run/` (an earlier run, pre-hardening, via the CLI).
+  Renders `docs/lineage.md` and the audit log alongside whichever run is selected: schema
+  profile, AI mappings with confidence colour-coding, transformation rules, the validation
+  gate board, the hash-chained audit timeline (with a re-verify button), lineage diagrams,
+  and the seed-capability / scope disclosure.
+- **Live Run** — configure scope + confidence threshold via `.env` (see the Configuration
+  page's caption — changing them for a new run needs an app restart), test the
+  PostgreSQL/Snowflake connections, launch a real migration, and watch it stage-by-stage.
+  The Start button is disabled with a specific list of missing variables if any required
+  `.env` credential (LLM, Postgres, Snowflake, or Langfuse) is unset. When a mapping scores
   below the threshold the run pauses on the **Human Review** page; submitting decisions
-  (with `reviewer_id` / `reviewer_role`) resumes the graph. Needs the same `.env`
-  credentials as the CLI. The compiled graph is held in the Streamlit session, so a live
-  run must be driven to completion within one server process.
+  (with `reviewer_id` / `reviewer_role`) resumes the graph. The compiled graph is held in
+  the Streamlit session, so a live run must be driven to completion within one server
+  process — use the sidebar's *New run* button rather than closing the tab mid-run.
 
 Pages: Configuration · Schema Profile · AI Mappings · Human Review · Rules · Run Status ·
 Validation · Audit Trail · Lineage · Evidence & Scope.
@@ -123,16 +129,20 @@ dbt test --project-dir validation/dbt_models --profiles-dir validation/dbt_model
 ## Evidence & Scope
 The seed configuration (`seed/seed_db.py`) supports 8 tables / ~106K rows with
 `patient_records` at 12,000 — the "5+ tables / 10,000+ rows on a primary table" bar is met
-by the seed. One **genuine end-to-end run** is committed under
-`evidence/2026-09-06-departments-full-run/` (real Postgres → Snowflake → Groq LLM → dbt),
-but at small scale (1 table, 12 rows) and on an **earlier commit** (`40e93dc`), before the
-final validation-hardening round (`c4f0b3d`). The post-`c4f0b3d` changes (value-distribution
-reconciliation, raw post-extraction check, `sqlglot` AST validation, reviewer identity,
-run-lifecycle + rollback) are covered by the 53-test `pytest` suite — including a
-live-Postgres semantic-execution test — but were **not** re-run as a committed live run, as
-a multi-table run needs LLM quota that wasn't available. Full disclosure, and the exact
-what-ran-vs-didn't breakdown, is in [`SUBMISSION_NOTES.md`](SUBMISSION_NOTES.md); the
-captured test transcript is `evidence/pytest-final.txt`.
+by the seed. Two **genuine end-to-end runs** are committed:
+
+- `evidence/2026-09-11-departments-app-run/` — the fully hardened pipeline (post-`c4f0b3d`,
+  including value-distribution reconciliation, the raw-data post-extraction check,
+  `sqlglot` AST validation, reviewer identity, and run-lifecycle + rollback), driven **live
+  through the Streamlit app** (Configuration → Human Review → completion). This is the run
+  to point an evaluator at.
+- `evidence/2026-09-06-departments-full-run/` — an earlier run on an earlier commit
+  (`40e93dc`), via the CLI, before the hardening round. Kept for provenance.
+
+Both are at small scale (1 table, `departments`, 12 rows) — no committed run yet covers the
+full 5+ table / 10,000+ row seed. That gap, and the exact what-ran-vs-didn't breakdown, is
+in [`SUBMISSION_NOTES.md`](SUBMISSION_NOTES.md); the captured test transcript is
+`evidence/pytest-final.txt` (53/53 passing).
 
 ## Human Review
 Low-confidence mappings are written to `data/human_review_queue.json`. Each decision is a JSON object with `mapping_index`, `decision` (`approve`/`reject`/`override`), `override_note`, `reviewer_id`, and `reviewer_role` — `reviewer_id`/`reviewer_role` are required on every decision, and a low-confidence approval/override also requires a non-empty `override_note`. Rejection blocks migration.
