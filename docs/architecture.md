@@ -6,4 +6,4 @@ on top as an optional presentation/control surface — it drives the same compil
 graph via `build_graph`/`invoke`/`Command(resume=...)` and adds no pipeline logic of its
 own; see `README.md` § Application.
 
-See `docs/lineage.md` for the auto-generated data lineage diagrams and `docs/architecture.png` for the visual diagram (predates the application layer above — the diagram covers the LangGraph pipeline only).
+See `docs/lineage.md` for the auto-generated data lineage diagrams and `docs/architecture.png` for the visual diagram, which includes the Streamlit application layer sitting above the LangGraph pipeline.

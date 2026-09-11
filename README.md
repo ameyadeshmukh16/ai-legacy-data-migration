@@ -9,6 +9,10 @@ The platform uses SQLAlchemy for profiling, LangChain for semantic mapping/rule/
 
 ## Architecture
 ```text
+Streamlit application layer (app.py, app/, services/workflow_service.py)
+        |  presentation + orchestration only -- drives the graph below via
+        |  build_graph() / invoke() / Command(resume=...); no pipeline logic of its own
+        v
 Legacy PostgreSQL (healthcare schema)
         |
 schema_profiler (SQLAlchemy) -> Great Expectations: source baseline
@@ -17,7 +21,8 @@ ai_mapper (LangChain) -- one LLM call per column, proposes target name/type/tran
         |
 human_review_gate (LangGraph interrupt, checkpointed) -- pauses only for mappings below CONFIDENCE_THRESHOLD;
         |                auto-approved mappings are marked review_status=AUTO_APPROVED (human_reviewed=false);
-        |                human decisions carry reviewer_id/reviewer_role
+        |                human decisions carry reviewer_id/reviewer_role, submitted via the app's
+        |                Human Review page or the CLI's stdin/JSON prompt
         |
 rule_generator (LangChain) -> lineage_generator (Mermaid diagrams)
         |
@@ -33,6 +38,8 @@ doc_generator -> target data dictionary
 Cross-cutting: LangFuse traces/scores + hash-chained audit log (run_started/run_completed/run_failed;
 failed runs roll back their run-scoped Snowflake tables)
 ```
+
+See § Application below for the Streamlit layer's own two modes (Live Run / Evidence Viewer).
 
 ## LLM Provider
 The LLM backend is abstracted behind `config/llm_factory.py`, selected via `LLM_PROVIDER` in `.env`. Supported providers: `groq` (default), `google_genai`, `nvidia`, `openai`. `groq`/`nvidia`/`openai` all run through `langchain-openai` (declared in `requirements.txt`); `google_genai` uses `langchain-google-genai`. Switching is a config change (`LLM_PROVIDER`/`LLM_API_KEY`/`LLM_MODEL` in `.env`), never an agent code change.
