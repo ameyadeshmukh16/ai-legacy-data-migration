@@ -1,0 +1,724 @@
+{
+  "trace_id": "5c6f09e8c6cf4f5d74b6669c196ac6c5",
+  "run_id": "a620702f-1714-4ce8-88c9-6a24757b7733",
+  "node": "ai_mapper",
+  "name": "RunnableSequence",
+  "timestamp": "2026-09-11 03:39:49.545000+00:00",
+  "html_path": "/project/cmtpwsmah0smyad0clajuy3wn/traces/5c6f09e8c6cf4f5d74b6669c196ac6c5",
+  "observations": [
+    {
+      "id": "38b7fa7944a7d0d0",
+      "type": "CHAIN",
+      "name": "RunnableSequence",
+      "model": null,
+      "start_time": "2026-09-11 03:39:54.490000+00:00",
+      "end_time": "2026-09-11 03:39:56.099000+00:00",
+      "latency": 1.609,
+      "calculated_total_cost": null,
+      "input": [
+        {
+          "content": "You are a senior data migration assistant. Infer semantic meaning only from supplied evidence. Never invent undocumented business meanings. If evidence is weak, lower confidence and explain why human review is required.\ntarget_table and target_column must always be non-empty, valid snake_case SQL identifiers (letters, digits, underscores only, starting with a letter or underscore) - never leave them blank and never use placeholders like 'UNKNOWN'. When the target schema is genuinely unclear, default target_table to the same value as source_table and target_column to a cleaned-up snake_case version of the source column name (renamed only if you can confidently infer a clearer name from the evidence, otherwise keep the source name as-is) - and reflect that uncertainty through a low confidence score and reasoning, not through a missing or placeholder name.",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "system",
+          "name": null,
+          "id": null
+        },
+        {
+          "content": "Table: departments\nColumn: dept_typ_cd\nType: VARCHAR(3)\nSample values: [\"IPD\", \"IPD\", \"ICU\", \"SRG\", \"ER\", \"SRG\", \"SRG\", \"SRG\", \"ICU\", \"ICU\", \"ER\", \"ICU\"]\nNull rate: 0.0\nCardinality: 4\nRelated foreign keys: []\n\nReturn target mapping, transformation suggestion, confidence 0.0-1.0 and reasoning. Do not guess when evidence is unclear.",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "human",
+          "name": null,
+          "id": null
+        }
+      ],
+      "output": {
+        "source_table": "departments",
+        "source_column": "dept_typ_cd",
+        "target_table": "departments",
+        "target_column": "dept_typ_cd",
+        "inferred_meaning": "Department type code indicating the category of a department (e.g., Inpatient (IPD), Intensive Care Unit (ICU), Surgery (SRG), Emergency (ER))",
+        "transformation_rule": "Direct copy of the source value; no transformation required",
+        "null_handling": "No null values present; preserve values as\u2011is",
+        "edge_cases": [
+          "Unexpected or new department codes not seen in sample",
+          "Potential future expansion of department types"
+        ],
+        "confidence": 0.85,
+        "reasoning": "The sample values correspond to known hospital department abbreviations, allowing a confident inference that the column stores a department type code. No nulls are present, and the values are already in the desired format, so a direct copy is appropriate. Confidence is high but not absolute because the full code list may include additional values not represented in the sample.",
+        "prompt_id": "dept_typ_cd_mapping"
+      },
+      "level": "DEFAULT"
+    },
+    {
+      "id": "59d2fd16273c47e2",
+      "type": "CHAIN",
+      "name": "RunnableLambda",
+      "model": null,
+      "start_time": "2026-09-11 03:39:54.490000+00:00",
+      "end_time": "2026-09-11 03:39:54.490000+00:00",
+      "latency": 0.0,
+      "calculated_total_cost": null,
+      "input": {
+        "content": "{\"source_table\":\"departments\",\"source_column\":\"dept_name\",\"target_table\":\"departments\",\"target_column\":\"dept_name\",\"inferred_meaning\":\"Name of the department (e.g., medical specialty or organizational unit)\",\"transformation_rule\":\"Trim surrounding whitespace; keep original string; store as VARCHAR preserving case\",\"null_handling\":\"No nulls present; load as is\",\"edge_cases\":[\"Values contain commas, hyphens, and conjunctions (e.g., 'Smith, Rowland and Clayton') which may affect downstream parsing\",\"Some entries appear to be company names rather than department names\"],\"confidence\":0.4,\"reasoning\":\"The column name and sample values suggest department names, but several values look like company names, making the exact business meaning uncertain. No nulls, so straightforward load. Because of mixed content, confidence is moderate.\",\"prompt_id\":\"dept_name_mapping\"}",
+        "additional_kwargs": {
+          "parsed": {
+            "source_table": "departments",
+            "source_column": "dept_name",
+            "target_table": "departments",
+            "target_column": "dept_name",
+            "inferred_meaning": "Name of the department (e.g., medical specialty or organizational unit)",
+            "transformation_rule": "Trim surrounding whitespace; keep original string; store as VARCHAR preserving case",
+            "null_handling": "No nulls present; load as is",
+            "edge_cases": [
+              "Values contain commas, hyphens, and conjunctions (e.g., 'Smith, Rowland and Clayton') which may affect downstream parsing",
+              "Some entries appear to be company names rather than department names"
+            ],
+            "confidence": 0.4,
+            "reasoning": "The column name and sample values suggest department names, but several values look like company names, making the exact business meaning uncertain. No nulls, so straightforward load. Because of mixed content, confidence is moderate.",
+            "prompt_id": "dept_name_mapping"
+          },
+          "refusal": null
+        },
+        "response_metadata": {
+          "token_usage": {
+            "completion_tokens": 689,
+            "prompt_tokens": 652,
+            "total_tokens": 1341,
+            "completion_tokens_details": {
+              "accepted_prediction_tokens": null,
+              "audio_tokens": null,
+              "reasoning_tokens": 498,
+              "rejected_prediction_tokens": null,
+              "text_tokens": null
+            },
+            "prompt_tokens_details": {
+              "audio_tokens": null,
+              "cache_write_tokens": null,
+              "cached_tokens": 512,
+              "image_tokens": null,
+              "text_tokens": null
+            },
+            "queue_time": 0.351851513,
+            "prompt_time": 0.007713944,
+            "completion_time": 1.493443259,
+            "total_time": 1.501157203
+          },
+          "model_provider": "openai",
+          "model_name": "openai/gpt-oss-120b",
+          "system_fingerprint": "fp_fe269835c7",
+          "id": "chatcmpl-89cf5d2f-a768-4554-9878-e73a289b8f03",
+          "service_tier": "on_demand",
+          "finish_reason": "stop",
+          "logprobs": null
+        },
+        "type": "ai",
+        "name": null,
+        "id": "lc_run--01a08e8c-e1a7-7ad2-bb5f-f526679aebd7-0",
+        "tool_calls": [],
+        "invalid_tool_calls": [],
+        "usage_metadata": {
+          "input_tokens": 652,
+          "output_tokens": 689,
+          "total_tokens": 1341,
+          "input_token_details": {
+            "cache_read": 512
+          },
+          "output_token_details": {
+            "reasoning": 498
+          }
+        }
+      },
+      "output": {
+        "source_table": "departments",
+        "source_column": "dept_name",
+        "target_table": "departments",
+        "target_column": "dept_name",
+        "inferred_meaning": "Name of the department (e.g., medical specialty or organizational unit)",
+        "transformation_rule": "Trim surrounding whitespace; keep original string; store as VARCHAR preserving case",
+        "null_handling": "No nulls present; load as is",
+        "edge_cases": [
+          "Values contain commas, hyphens, and conjunctions (e.g., 'Smith, Rowland and Clayton') which may affect downstream parsing",
+          "Some entries appear to be company names rather than department names"
+        ],
+        "confidence": 0.4,
+        "reasoning": "The column name and sample values suggest department names, but several values look like company names, making the exact business meaning uncertain. No nulls, so straightforward load. Because of mixed content, confidence is moderate.",
+        "prompt_id": "dept_name_mapping"
+      },
+      "level": "DEFAULT"
+    },
+    {
+      "id": "7601d39863667753",
+      "type": "CHAIN",
+      "name": "RunnableLambda",
+      "model": null,
+      "start_time": "2026-09-11 03:39:52.610000+00:00",
+      "end_time": "2026-09-11 03:39:52.610000+00:00",
+      "latency": 0.0,
+      "calculated_total_cost": null,
+      "input": {
+        "content": "{\"source_table\":\"departments\",\"source_column\":\"dept_cd\",\"target_table\":\"departments\",\"target_column\":\"dept_cd\",\"inferred_meaning\":\"department code identifier\",\"transformation_rule\":\"direct copy (no transformation)\",\"null_handling\":\"no null values; preserve as is\",\"edge_cases\":[\"potential future codes not represented in sample\"],\"confidence\":0.93,\"reasoning\":\"The source column dept_cd contains alphanumeric department codes. No nulls are present and the sample values illustrate the typical format. With no target schema provided, the safest approach is to map to the same table and column name, applying a direct copy. This mapping is highly confident but retains a modest uncertainty due to possible unseen future code formats.\",\"prompt_id\":\"prompt_001\"}",
+        "additional_kwargs": {
+          "parsed": {
+            "source_table": "departments",
+            "source_column": "dept_cd",
+            "target_table": "departments",
+            "target_column": "dept_cd",
+            "inferred_meaning": "department code identifier",
+            "transformation_rule": "direct copy (no transformation)",
+            "null_handling": "no null values; preserve as is",
+            "edge_cases": [
+              "potential future codes not represented in sample"
+            ],
+            "confidence": 0.93,
+            "reasoning": "The source column dept_cd contains alphanumeric department codes. No nulls are present and the sample values illustrate the typical format. With no target schema provided, the safest approach is to map to the same table and column name, applying a direct copy. This mapping is highly confident but retains a modest uncertainty due to possible unseen future code formats.",
+            "prompt_id": "prompt_001"
+          },
+          "refusal": null
+        },
+        "response_metadata": {
+          "token_usage": {
+            "completion_tokens": 600,
+            "prompt_tokens": 634,
+            "total_tokens": 1234,
+            "completion_tokens_details": {
+              "accepted_prediction_tokens": null,
+              "audio_tokens": null,
+              "reasoning_tokens": 435,
+              "rejected_prediction_tokens": null,
+              "text_tokens": null
+            },
+            "prompt_tokens_details": null,
+            "queue_time": 0.400232987,
+            "prompt_time": 0.028021253,
+            "completion_time": 1.240978733,
+            "total_time": 1.268999986
+          },
+          "model_provider": "openai",
+          "model_name": "openai/gpt-oss-120b",
+          "system_fingerprint": "fp_c868cf1eaa",
+          "id": "chatcmpl-e630f08e-3f18-4b76-93b2-4e8bfe402502",
+          "service_tier": "on_demand",
+          "finish_reason": "stop",
+          "logprobs": null
+        },
+        "type": "ai",
+        "name": null,
+        "id": "lc_run--01a08e8c-db07-7bb2-84b0-4bb70df02646-0",
+        "tool_calls": [],
+        "invalid_tool_calls": [],
+        "usage_metadata": {
+          "input_tokens": 634,
+          "output_tokens": 600,
+          "total_tokens": 1234,
+          "input_token_details": {},
+          "output_token_details": {
+            "reasoning": 435
+          }
+        }
+      },
+      "output": {
+        "source_table": "departments",
+        "source_column": "dept_cd",
+        "target_table": "departments",
+        "target_column": "dept_cd",
+        "inferred_meaning": "department code identifier",
+        "transformation_rule": "direct copy (no transformation)",
+        "null_handling": "no null values; preserve as is",
+        "edge_cases": [
+          "potential future codes not represented in sample"
+        ],
+        "confidence": 0.93,
+        "reasoning": "The source column dept_cd contains alphanumeric department codes. No nulls are present and the sample values illustrate the typical format. With no target schema provided, the safest approach is to map to the same table and column name, applying a direct copy. This mapping is highly confident but retains a modest uncertainty due to possible unseen future code formats.",
+        "prompt_id": "prompt_001"
+      },
+      "level": "DEFAULT"
+    },
+    {
+      "id": "7b556e07732db141",
+      "type": "CHAIN",
+      "name": "RunnableLambda",
+      "model": null,
+      "start_time": "2026-09-11 03:39:50.903000+00:00",
+      "end_time": "2026-09-11 03:39:50.903000+00:00",
+      "latency": 0.0,
+      "calculated_total_cost": null,
+      "input": {
+        "content": "{\"source_table\":\"departments\",\"source_column\":\"dept_id\",\"target_table\":\"departments\",\"target_column\":\"dept_id\",\"inferred_meaning\":\"Unique identifier for each department (primary key)\",\"transformation_rule\":\"Direct copy; no transformation required\",\"null_handling\":\"preserve (no nulls)\",\"edge_cases\":[],\"confidence\":0.98,\"reasoning\":\"The column is a BIGINT with a sample of sequential integers, zero null rate, and low cardinality consistent with a primary key. No transformation or null handling is needed, so the mapping can be a direct copy to the same table and column name.\",\"prompt_id\":\"prompt_1\"}",
+        "additional_kwargs": {
+          "parsed": {
+            "source_table": "departments",
+            "source_column": "dept_id",
+            "target_table": "departments",
+            "target_column": "dept_id",
+            "inferred_meaning": "Unique identifier for each department (primary key)",
+            "transformation_rule": "Direct copy; no transformation required",
+            "null_handling": "preserve (no nulls)",
+            "edge_cases": [],
+            "confidence": 0.98,
+            "reasoning": "The column is a BIGINT with a sample of sequential integers, zero null rate, and low cardinality consistent with a primary key. No transformation or null handling is needed, so the mapping can be a direct copy to the same table and column name.",
+            "prompt_id": "prompt_1"
+          },
+          "refusal": null
+        },
+        "response_metadata": {
+          "token_usage": {
+            "completion_tokens": 397,
+            "prompt_tokens": 612,
+            "total_tokens": 1009,
+            "completion_tokens_details": {
+              "accepted_prediction_tokens": null,
+              "audio_tokens": null,
+              "reasoning_tokens": 251,
+              "rejected_prediction_tokens": null,
+              "text_tokens": null
+            },
+            "prompt_tokens_details": null,
+            "queue_time": 0.405508999,
+            "prompt_time": 0.03063455,
+            "completion_time": 0.825349,
+            "total_time": 0.85598355
+          },
+          "model_provider": "openai",
+          "model_name": "openai/gpt-oss-120b",
+          "system_fingerprint": "fp_e1a78f200e",
+          "id": "chatcmpl-47a72f51-26d2-439d-804e-1ce352306120",
+          "service_tier": "on_demand",
+          "finish_reason": "stop",
+          "logprobs": null
+        },
+        "type": "ai",
+        "name": null,
+        "id": "lc_run--01a08e8c-d5b0-7c43-812c-697eaebb05b9-0",
+        "tool_calls": [],
+        "invalid_tool_calls": [],
+        "usage_metadata": {
+          "input_tokens": 612,
+          "output_tokens": 397,
+          "total_tokens": 1009,
+          "input_token_details": {},
+          "output_token_details": {
+            "reasoning": 251
+          }
+        }
+      },
+      "output": {
+        "source_table": "departments",
+        "source_column": "dept_id",
+        "target_table": "departments",
+        "target_column": "dept_id",
+        "inferred_meaning": "Unique identifier for each department (primary key)",
+        "transformation_rule": "Direct copy; no transformation required",
+        "null_handling": "preserve (no nulls)",
+        "edge_cases": [],
+        "confidence": 0.98,
+        "reasoning": "The column is a BIGINT with a sample of sequential integers, zero null rate, and low cardinality consistent with a primary key. No transformation or null handling is needed, so the mapping can be a direct copy to the same table and column name.",
+        "prompt_id": "prompt_1"
+      },
+      "level": "DEFAULT"
+    },
+    {
+      "id": "96e68f44ae05d60d",
+      "type": "CHAIN",
+      "name": "RunnableSequence",
+      "model": null,
+      "start_time": "2026-09-11 03:39:49.545000+00:00",
+      "end_time": "2026-09-11 03:39:50.903000+00:00",
+      "latency": 1.358,
+      "calculated_total_cost": null,
+      "input": [
+        {
+          "content": "You are a senior data migration assistant. Infer semantic meaning only from supplied evidence. Never invent undocumented business meanings. If evidence is weak, lower confidence and explain why human review is required.\ntarget_table and target_column must always be non-empty, valid snake_case SQL identifiers (letters, digits, underscores only, starting with a letter or underscore) - never leave them blank and never use placeholders like 'UNKNOWN'. When the target schema is genuinely unclear, default target_table to the same value as source_table and target_column to a cleaned-up snake_case version of the source column name (renamed only if you can confidently infer a clearer name from the evidence, otherwise keep the source name as-is) - and reflect that uncertainty through a low confidence score and reasoning, not through a missing or placeholder name.",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "system",
+          "name": null,
+          "id": null
+        },
+        {
+          "content": "Table: departments\nColumn: dept_id\nType: BIGINT\nSample values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]\nNull rate: 0.0\nCardinality: 12\nRelated foreign keys: []\n\nReturn target mapping, transformation suggestion, confidence 0.0-1.0 and reasoning. Do not guess when evidence is unclear.",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "human",
+          "name": null,
+          "id": null
+        }
+      ],
+      "output": {
+        "source_table": "departments",
+        "source_column": "dept_id",
+        "target_table": "departments",
+        "target_column": "dept_id",
+        "inferred_meaning": "Unique identifier for each department (primary key)",
+        "transformation_rule": "Direct copy; no transformation required",
+        "null_handling": "preserve (no nulls)",
+        "edge_cases": [],
+        "confidence": 0.98,
+        "reasoning": "The column is a BIGINT with a sample of sequential integers, zero null rate, and low cardinality consistent with a primary key. No transformation or null handling is needed, so the mapping can be a direct copy to the same table and column name.",
+        "prompt_id": "prompt_1"
+      },
+      "level": "DEFAULT"
+    },
+    {
+      "id": "a6b7e93f1e9aa005",
+      "type": "CHAIN",
+      "name": "RunnableSequence",
+      "model": null,
+      "start_time": "2026-09-11 03:39:52.614000+00:00",
+      "end_time": "2026-09-11 03:39:54.490000+00:00",
+      "latency": 1.876,
+      "calculated_total_cost": null,
+      "input": [
+        {
+          "content": "You are a senior data migration assistant. Infer semantic meaning only from supplied evidence. Never invent undocumented business meanings. If evidence is weak, lower confidence and explain why human review is required.\ntarget_table and target_column must always be non-empty, valid snake_case SQL identifiers (letters, digits, underscores only, starting with a letter or underscore) - never leave them blank and never use placeholders like 'UNKNOWN'. When the target schema is genuinely unclear, default target_table to the same value as source_table and target_column to a cleaned-up snake_case version of the source column name (renamed only if you can confidently infer a clearer name from the evidence, otherwise keep the source name as-is) - and reflect that uncertainty through a low confidence score and reasoning, not through a missing or placeholder name.",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "system",
+          "name": null,
+          "id": null
+        },
+        {
+          "content": "Table: departments\nColumn: dept_name\nType: VARCHAR(120)\nSample values: [\"Cardiology\", \"Orthopedics\", \"Smith LLC\", \"Smith and Sons\", \"Massey, Parks and Terry\", \"Knight-Wood\", \"Smith, Rowland and Clayton\", \"Lang, Bennett and Wilson\", \"Dudley-Bennett\", \"Taylor, Bridges and Hudson\", \"Walker-Gonzalez\", \"Price, Morris and Griffin\"]\nNull rate: 0.0\nCardinality: 12\nRelated foreign keys: []\n\nReturn target mapping, transformation suggestion, confidence 0.0-1.0 and reasoning. Do not guess when evidence is unclear.",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "human",
+          "name": null,
+          "id": null
+        }
+      ],
+      "output": {
+        "source_table": "departments",
+        "source_column": "dept_name",
+        "target_table": "departments",
+        "target_column": "dept_name",
+        "inferred_meaning": "Name of the department (e.g., medical specialty or organizational unit)",
+        "transformation_rule": "Trim surrounding whitespace; keep original string; store as VARCHAR preserving case",
+        "null_handling": "No nulls present; load as is",
+        "edge_cases": [
+          "Values contain commas, hyphens, and conjunctions (e.g., 'Smith, Rowland and Clayton') which may affect downstream parsing",
+          "Some entries appear to be company names rather than department names"
+        ],
+        "confidence": 0.4,
+        "reasoning": "The column name and sample values suggest department names, but several values look like company names, making the exact business meaning uncertain. No nulls, so straightforward load. Because of mixed content, confidence is moderate.",
+        "prompt_id": "dept_name_mapping"
+      },
+      "level": "DEFAULT"
+    },
+    {
+      "id": "cf6bf646c8bca807",
+      "type": "CHAIN",
+      "name": "RunnableSequence",
+      "model": null,
+      "start_time": "2026-09-11 03:39:50.919000+00:00",
+      "end_time": "2026-09-11 03:39:52.610000+00:00",
+      "latency": 1.691,
+      "calculated_total_cost": null,
+      "input": [
+        {
+          "content": "You are a senior data migration assistant. Infer semantic meaning only from supplied evidence. Never invent undocumented business meanings. If evidence is weak, lower confidence and explain why human review is required.\ntarget_table and target_column must always be non-empty, valid snake_case SQL identifiers (letters, digits, underscores only, starting with a letter or underscore) - never leave them blank and never use placeholders like 'UNKNOWN'. When the target schema is genuinely unclear, default target_table to the same value as source_table and target_column to a cleaned-up snake_case version of the source column name (renamed only if you can confidently infer a clearer name from the evidence, otherwise keep the source name as-is) - and reflect that uncertainty through a low confidence score and reasoning, not through a missing or placeholder name.",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "system",
+          "name": null,
+          "id": null
+        },
+        {
+          "content": "Table: departments\nColumn: dept_cd\nType: VARCHAR(20)\nSample values: [\"CARD\", \"ORTH\", \"DEPKFX\", \"DEPBOI\", \"DEPXHZ\", \"DEPYUZ\", \"DEPVZI\", \"DEPJXJ\", \"DEPRJT\", \"DEPGIJ\", \"DEPJCU\", \"DEPRBU\"]\nNull rate: 0.0\nCardinality: 12\nRelated foreign keys: []\n\nReturn target mapping, transformation suggestion, confidence 0.0-1.0 and reasoning. Do not guess when evidence is unclear.",
+          "additional_kwargs": {},
+          "response_metadata": {},
+          "type": "human",
+          "name": null,
+          "id": null
+        }
+      ],
+      "output": {
+        "source_table": "departments",
+        "source_column": "dept_cd",
+        "target_table": "departments",
+        "target_column": "dept_cd",
+        "inferred_meaning": "department code identifier",
+        "transformation_rule": "direct copy (no transformation)",
+        "null_handling": "no null values; preserve as is",
+        "edge_cases": [
+          "potential future codes not represented in sample"
+        ],
+        "confidence": 0.93,
+        "reasoning": "The source column dept_cd contains alphanumeric department codes. No nulls are present and the sample values illustrate the typical format. With no target schema provided, the safest approach is to map to the same table and column name, applying a direct copy. This mapping is highly confident but retains a modest uncertainty due to possible unseen future code formats.",
+        "prompt_id": "prompt_001"
+      },
+      "level": "DEFAULT"
+    },
+    {
+      "id": "ed85afc3e2bd8f30",
+      "type": "CHAIN",
+      "name": "RunnableLambda",
+      "model": null,
+      "start_time": "2026-09-11 03:39:56.098000+00:00",
+      "end_time": "2026-09-11 03:39:56.099000+00:00",
+      "latency": 0.001,
+      "calculated_total_cost": null,
+      "input": {
+        "content": "{\"source_table\":\"departments\",\"source_column\":\"dept_typ_cd\",\"target_table\":\"departments\",\"target_column\":\"dept_typ_cd\",\"inferred_meaning\":\"Department type code indicating the category of a department (e.g., Inpatient (IPD), Intensive Care Unit (ICU), Surgery (SRG), Emergency (ER))\",\"transformation_rule\":\"Direct copy of the source value; no transformation required\",\"null_handling\":\"No null values present; preserve values as\u2011is\",\"edge_cases\":[\"Unexpected or new department codes not seen in sample\",\"Potential future expansion of department types\"],\"confidence\":0.85,\"reasoning\":\"The sample values correspond to known hospital department abbreviations, allowing a confident inference that the column stores a department type code. No nulls are present, and the values are already in the desired format, so a direct copy is appropriate. Confidence is high but not absolute because the full code list may include additional values not represented in the sample.\",\"prompt_id\":\"dept_typ_cd_mapping\"}",
+        "additional_kwargs": {
+          "parsed": {
+            "source_table": "departments",
+            "source_column": "dept_typ_cd",
+            "target_table": "departments",
+            "target_column": "dept_typ_cd",
+            "inferred_meaning": "Department type code indicating the category of a department (e.g., Inpatient (IPD), Intensive Care Unit (ICU), Surgery (SRG), Emergency (ER))",
+            "transformation_rule": "Direct copy of the source value; no transformation required",
+            "null_handling": "No null values present; preserve values as\u2011is",
+            "edge_cases": [
+              "Unexpected or new department codes not seen in sample",
+              "Potential future expansion of department types"
+            ],
+            "confidence": 0.85,
+            "reasoning": "The sample values correspond to known hospital department abbreviations, allowing a confident inference that the column stores a department type code. No nulls are present, and the values are already in the desired format, so a direct copy is appropriate. Confidence is high but not absolute because the full code list may include additional values not represented in the sample.",
+            "prompt_id": "dept_typ_cd_mapping"
+          },
+          "refusal": null
+        },
+        "response_metadata": {
+          "token_usage": {
+            "completion_tokens": 536,
+            "prompt_tokens": 624,
+            "total_tokens": 1160,
+            "completion_tokens_details": {
+              "accepted_prediction_tokens": null,
+              "audio_tokens": null,
+              "reasoning_tokens": 320,
+              "rejected_prediction_tokens": null,
+              "text_tokens": null
+            },
+            "prompt_tokens_details": null,
+            "queue_time": 0.410075722,
+            "prompt_time": 0.057719205,
+            "completion_time": 1.112959774,
+            "total_time": 1.170678979
+          },
+          "model_provider": "openai",
+          "model_name": "openai/gpt-oss-120b",
+          "system_fingerprint": "fp_bb691ea66b",
+          "id": "chatcmpl-ecf9c31d-4976-4b1e-8829-e5315b3cfd24",
+          "service_tier": "on_demand",
+          "finish_reason": "stop",
+          "logprobs": null
+        },
+        "type": "ai",
+        "name": null,
+        "id": "lc_run--01a08e8c-e8fe-7082-8303-6623e53b81fe-0",
+        "tool_calls": [],
+        "invalid_tool_calls": [],
+        "usage_metadata": {
+          "input_tokens": 624,
+          "output_tokens": 536,
+          "total_tokens": 1160,
+          "input_token_details": {},
+          "output_token_details": {
+            "reasoning": 320
+          }
+        }
+      },
+      "output": {
+        "source_table": "departments",
+        "source_column": "dept_typ_cd",
+        "target_table": "departments",
+        "target_column": "dept_typ_cd",
+        "inferred_meaning": "Department type code indicating the category of a department (e.g., Inpatient (IPD), Intensive Care Unit (ICU), Surgery (SRG), Emergency (ER))",
+        "transformation_rule": "Direct copy of the source value; no transformation required",
+        "null_handling": "No null values present; preserve values as\u2011is",
+        "edge_cases": [
+          "Unexpected or new department codes not seen in sample",
+          "Potential future expansion of department types"
+        ],
+        "confidence": 0.85,
+        "reasoning": "The sample values correspond to known hospital department abbreviations, allowing a confident inference that the column stores a department type code. No nulls are present, and the values are already in the desired format, so a direct copy is appropriate. Confidence is high but not absolute because the full code list may include additional values not represented in the sample.",
+        "prompt_id": "dept_typ_cd_mapping"
+      },
+      "level": "DEFAULT"
+    },
+    {
+      "id": "6ab84546955dff65",
+      "type": "GENERATION",
+      "name": "ChatOpenAI",
+      "model": "openai/gpt-oss-120b",
+      "start_time": "2026-09-11 03:39:52.615000+00:00",
+      "end_time": "2026-09-11 03:39:54.489000+00:00",
+      "latency": 1.874,
+      "calculated_total_cost": null,
+      "input": [
+        {
+          "role": "system",
+          "content": "You are a senior data migration assistant. Infer semantic meaning only from supplied evidence. Never invent undocumented business meanings. If evidence is weak, lower confidence and explain why human review is required.\ntarget_table and target_column must always be non-empty, valid snake_case SQL identifiers (letters, digits, underscores only, starting with a letter or underscore) - never leave them blank and never use placeholders like 'UNKNOWN'. When the target schema is genuinely unclear, default target_table to the same value as source_table and target_column to a cleaned-up snake_case version of the source column name (renamed only if you can confidently infer a clearer name from the evidence, otherwise keep the source name as-is) - and reflect that uncertainty through a low confidence score and reasoning, not through a missing or placeholder name."
+        },
+        {
+          "role": "user",
+          "content": "Table: departments\nColumn: dept_name\nType: VARCHAR(120)\nSample values: [\"Cardiology\", \"Orthopedics\", \"Smith LLC\", \"Smith and Sons\", \"Massey, Parks and Terry\", \"Knight-Wood\", \"Smith, Rowland and Clayton\", \"Lang, Bennett and Wilson\", \"Dudley-Bennett\", \"Taylor, Bridges and Hudson\", \"Walker-Gonzalez\", \"Price, Morris and Griffin\"]\nNull rate: 0.0\nCardinality: 12\nRelated foreign keys: []\n\nReturn target mapping, transformation suggestion, confidence 0.0-1.0 and reasoning. Do not guess when evidence is unclear."
+        }
+      ],
+      "output": {
+        "role": "assistant",
+        "content": "{\"source_table\":\"departments\",\"source_column\":\"dept_name\",\"target_table\":\"departments\",\"target_column\":\"dept_name\",\"inferred_meaning\":\"Name of the department (e.g., medical specialty or organizational unit)\",\"transformation_rule\":\"Trim surrounding whitespace; keep original string; store as VARCHAR preserving case\",\"null_handling\":\"No nulls present; load as is\",\"edge_cases\":[\"Values contain commas, hyphens, and conjunctions (e.g., 'Smith, Rowland and Clayton') which may affect downstream parsing\",\"Some entries appear to be company names rather than department names\"],\"confidence\":0.4,\"reasoning\":\"The column name and sample values suggest department names, but several values look like company names, making the exact business meaning uncertain. No nulls, so straightforward load. Because of mixed content, confidence is moderate.\",\"prompt_id\":\"dept_name_mapping\"}",
+        "additional_kwargs": {
+          "parsed": {
+            "source_table": "departments",
+            "source_column": "dept_name",
+            "target_table": "departments",
+            "target_column": "dept_name",
+            "inferred_meaning": "Name of the department (e.g., medical specialty or organizational unit)",
+            "transformation_rule": "Trim surrounding whitespace; keep original string; store as VARCHAR preserving case",
+            "null_handling": "No nulls present; load as is",
+            "edge_cases": [
+              "Values contain commas, hyphens, and conjunctions (e.g., 'Smith, Rowland and Clayton') which may affect downstream parsing",
+              "Some entries appear to be company names rather than department names"
+            ],
+            "confidence": 0.4,
+            "reasoning": "The column name and sample values suggest department names, but several values look like company names, making the exact business meaning uncertain. No nulls, so straightforward load. Because of mixed content, confidence is moderate.",
+            "prompt_id": "dept_name_mapping"
+          },
+          "refusal": null
+        }
+      },
+      "level": "DEFAULT"
+    },
+    {
+      "id": "766d5447f72b59f0",
+      "type": "GENERATION",
+      "name": "ChatOpenAI",
+      "model": "openai/gpt-oss-120b",
+      "start_time": "2026-09-11 03:39:50.919000+00:00",
+      "end_time": "2026-09-11 03:39:52.610000+00:00",
+      "latency": 1.691,
+      "calculated_total_cost": null,
+      "input": [
+        {
+          "role": "system",
+          "content": "You are a senior data migration assistant. Infer semantic meaning only from supplied evidence. Never invent undocumented business meanings. If evidence is weak, lower confidence and explain why human review is required.\ntarget_table and target_column must always be non-empty, valid snake_case SQL identifiers (letters, digits, underscores only, starting with a letter or underscore) - never leave them blank and never use placeholders like 'UNKNOWN'. When the target schema is genuinely unclear, default target_table to the same value as source_table and target_column to a cleaned-up snake_case version of the source column name (renamed only if you can confidently infer a clearer name from the evidence, otherwise keep the source name as-is) - and reflect that uncertainty through a low confidence score and reasoning, not through a missing or placeholder name."
+        },
+        {
+          "role": "user",
+          "content": "Table: departments\nColumn: dept_cd\nType: VARCHAR(20)\nSample values: [\"CARD\", \"ORTH\", \"DEPKFX\", \"DEPBOI\", \"DEPXHZ\", \"DEPYUZ\", \"DEPVZI\", \"DEPJXJ\", \"DEPRJT\", \"DEPGIJ\", \"DEPJCU\", \"DEPRBU\"]\nNull rate: 0.0\nCardinality: 12\nRelated foreign keys: []\n\nReturn target mapping, transformation suggestion, confidence 0.0-1.0 and reasoning. Do not guess when evidence is unclear."
+        }
+      ],
+      "output": {
+        "role": "assistant",
+        "content": "{\"source_table\":\"departments\",\"source_column\":\"dept_cd\",\"target_table\":\"departments\",\"target_column\":\"dept_cd\",\"inferred_meaning\":\"department code identifier\",\"transformation_rule\":\"direct copy (no transformation)\",\"null_handling\":\"no null values; preserve as is\",\"edge_cases\":[\"potential future codes not represented in sample\"],\"confidence\":0.93,\"reasoning\":\"The source column dept_cd contains alphanumeric department codes. No nulls are present and the sample values illustrate the typical format. With no target schema provided, the safest approach is to map to the same table and column name, applying a direct copy. This mapping is highly confident but retains a modest uncertainty due to possible unseen future code formats.\",\"prompt_id\":\"prompt_001\"}",
+        "additional_kwargs": {
+          "parsed": {
+            "source_table": "departments",
+            "source_column": "dept_cd",
+            "target_table": "departments",
+            "target_column": "dept_cd",
+            "inferred_meaning": "department code identifier",
+            "transformation_rule": "direct copy (no transformation)",
+            "null_handling": "no null values; preserve as is",
+            "edge_cases": [
+              "potential future codes not represented in sample"
+            ],
+            "confidence": 0.93,
+            "reasoning": "The source column dept_cd contains alphanumeric department codes. No nulls are present and the sample values illustrate the typical format. With no target schema provided, the safest approach is to map to the same table and column name, applying a direct copy. This mapping is highly confident but retains a modest uncertainty due to possible unseen future code formats.",
+            "prompt_id": "prompt_001"
+          },
+          "refusal": null
+        }
+      },
+      "level": "DEFAULT"
+    },
+    {
+      "id": "a54918d30c2bd5bb",
+      "type": "GENERATION",
+      "name": "ChatOpenAI",
+      "model": "openai/gpt-oss-120b",
+      "start_time": "2026-09-11 03:39:54.490000+00:00",
+      "end_time": "2026-09-11 03:39:56.098000+00:00",
+      "latency": 1.608,
+      "calculated_total_cost": null,
+      "input": [
+        {
+          "role": "system",
+          "content": "You are a senior data migration assistant. Infer semantic meaning only from supplied evidence. Never invent undocumented business meanings. If evidence is weak, lower confidence and explain why human review is required.\ntarget_table and target_column must always be non-empty, valid snake_case SQL identifiers (letters, digits, underscores only, starting with a letter or underscore) - never leave them blank and never use placeholders like 'UNKNOWN'. When the target schema is genuinely unclear, default target_table to the same value as source_table and target_column to a cleaned-up snake_case version of the source column name (renamed only if you can confidently infer a clearer name from the evidence, otherwise keep the source name as-is) - and reflect that uncertainty through a low confidence score and reasoning, not through a missing or placeholder name."
+        },
+        {
+          "role": "user",
+          "content": "Table: departments\nColumn: dept_typ_cd\nType: VARCHAR(3)\nSample values: [\"IPD\", \"IPD\", \"ICU\", \"SRG\", \"ER\", \"SRG\", \"SRG\", \"SRG\", \"ICU\", \"ICU\", \"ER\", \"ICU\"]\nNull rate: 0.0\nCardinality: 4\nRelated foreign keys: []\n\nReturn target mapping, transformation suggestion, confidence 0.0-1.0 and reasoning. Do not guess when evidence is unclear."
+        }
+      ],
+      "output": {
+        "role": "assistant",
+        "content": "{\"source_table\":\"departments\",\"source_column\":\"dept_typ_cd\",\"target_table\":\"departments\",\"target_column\":\"dept_typ_cd\",\"inferred_meaning\":\"Department type code indicating the category of a department (e.g., Inpatient (IPD), Intensive Care Unit (ICU), Surgery (SRG), Emergency (ER))\",\"transformation_rule\":\"Direct copy of the source value; no transformation required\",\"null_handling\":\"No null values present; preserve values as\u2011is\",\"edge_cases\":[\"Unexpected or new department codes not seen in sample\",\"Potential future expansion of department types\"],\"confidence\":0.85,\"reasoning\":\"The sample values correspond to known hospital department abbreviations, allowing a confident inference that the column stores a department type code. No nulls are present, and the values are already in the desired format, so a direct copy is appropriate. Confidence is high but not absolute because the full code list may include additional values not represented in the sample.\",\"prompt_id\":\"dept_typ_cd_mapping\"}",
+        "additional_kwargs": {
+          "parsed": {
+            "source_table": "departments",
+            "source_column": "dept_typ_cd",
+            "target_table": "departments",
+            "target_column": "dept_typ_cd",
+            "inferred_meaning": "Department type code indicating the category of a department (e.g., Inpatient (IPD), Intensive Care Unit (ICU), Surgery (SRG), Emergency (ER))",
+            "transformation_rule": "Direct copy of the source value; no transformation required",
+            "null_handling": "No null values present; preserve values as\u2011is",
+            "edge_cases": [
+              "Unexpected or new department codes not seen in sample",
+              "Potential future expansion of department types"
+            ],
+            "confidence": 0.85,
+            "reasoning": "The sample values correspond to known hospital department abbreviations, allowing a confident inference that the column stores a department type code. No nulls are present, and the values are already in the desired format, so a direct copy is appropriate. Confidence is high but not absolute because the full code list may include additional values not represented in the sample.",
+            "prompt_id": "dept_typ_cd_mapping"
+          },
+          "refusal": null
+        }
+      },
+      "level": "DEFAULT"
+    },
+    {
+      "id": "ccb810ebdc17f3f6",
+      "type": "GENERATION",
+      "name": "ChatOpenAI",
+      "model": "openai/gpt-oss-120b",
+      "start_time": "2026-09-11 03:39:49.545000+00:00",
+      "end_time": "2026-09-11 03:39:50.903000+00:00",
+      "latency": 1.358,
+      "calculated_total_cost": null,
+      "input": [
+        {
+          "role": "system",
+          "content": "You are a senior data migration assistant. Infer semantic meaning only from supplied evidence. Never invent undocumented business meanings. If evidence is weak, lower confidence and explain why human review is required.\ntarget_table and target_column must always be non-empty, valid snake_case SQL identifiers (letters, digits, underscores only, starting with a letter or underscore) - never leave them blank and never use placeholders like 'UNKNOWN'. When the target schema is genuinely unclear, default target_table to the same value as source_table and target_column to a cleaned-up snake_case version of the source column name (renamed only if you can confidently infer a clearer name from the evidence, otherwise keep the source name as-is) - and reflect that uncertainty through a low confidence score and reasoning, not through a missing or placeholder name."
+        },
+        {
+          "role": "user",
+          "content": "Table: departments\nColumn: dept_id\nType: BIGINT\nSample values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]\nNull rate: 0.0\nCardinality: 12\nRelated foreign keys: []\n\nReturn target mapping, transformation suggestion, confidence 0.0-1.0 and reasoning. Do not guess when evidence is unclear."
+        }
+      ],
+      "output": {
+        "role": "assistant",
+        "content": "{\"source_table\":\"departments\",\"source_column\":\"dept_id\",\"target_table\":\"departments\",\"target_column\":\"dept_id\",\"inferred_meaning\":\"Unique identifier for each department (primary key)\",\"transformation_rule\":\"Direct copy; no transformation required\",\"null_handling\":\"preserve (no nulls)\",\"edge_cases\":[],\"confidence\":0.98,\"reasoning\":\"The column is a BIGINT with a sample of sequential integers, zero null rate, and low cardinality consistent with a primary key. No transformation or null handling is needed, so the mapping can be a direct copy to the same table and column name.\",\"prompt_id\":\"prompt_1\"}",
+        "additional_kwargs": {
+          "parsed": {
+            "source_table": "departments",
+            "source_column": "dept_id",
+            "target_table": "departments",
+            "target_column": "dept_id",
+            "inferred_meaning": "Unique identifier for each department (primary key)",
+            "transformation_rule": "Direct copy; no transformation required",
+            "null_handling": "preserve (no nulls)",
+            "edge_cases": [],
+            "confidence": 0.98,
+            "reasoning": "The column is a BIGINT with a sample of sequential integers, zero null rate, and low cardinality consistent with a primary key. No transformation or null handling is needed, so the mapping can be a direct copy to the same table and column name.",
+            "prompt_id": "prompt_1"
+          },
+          "refusal": null
+        }
+      },
+      "level": "DEFAULT"
+    }
+  ],
+  "scores": [
+    {
+      "id": "17cf7c27fdad9f47",
+      "name": "human_review_decision",
+      "value": 1.0,
+      "data_type": "BOOLEAN",
+      "comment": "mapping_index=2 column=dept_name note=Confirmed: dept_name is the free-text department label; TRIM only, no domain constraint. reviewer=reviewer-001/data_sme",
+      "timestamp": "2026-09-11 03:43:09.907000+00:00"
+    }
+  ]
+}

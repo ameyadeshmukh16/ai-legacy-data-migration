@@ -7,7 +7,7 @@ load_dotenv()
 class Settings:
     source_db_url: str = os.getenv("SOURCE_DB_URL","")
     source_db_kind: str = os.getenv("SOURCE_DB_KIND","postgresql")
-    llm_provider: str = os.getenv("LLM_PROVIDER","google_genai")
+    llm_provider: str = os.getenv("LLM_PROVIDER","groq")
     llm_api_key: str = os.getenv("LLM_API_KEY","")
     llm_model: str = os.getenv("LLM_MODEL","")
     confidence_threshold: float = float(os.getenv("CONFIDENCE_THRESHOLD","0.80"))

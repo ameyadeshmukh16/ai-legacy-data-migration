@@ -65,6 +65,10 @@ than a re-implementation.
   keeps accumulating events from later runs on top of the same hash chain; this snapshot
   preserves exactly what this run produced. See the verification section below for how to
   check it correctly.
+- `langfuse/` — real exported LangFuse traces for this run's three LLM-calling nodes
+  (`ai_mapper`, `rule_generator`, `doc_generator`): prompts, structured outputs, model,
+  timing, and the `human_review_decision` score attached to the `dept_name` approval. See
+  `langfuse/langfuse_trace.md`.
 
 ## Independently re-verifying the hash chain
 
@@ -165,6 +169,10 @@ run possible. It is not represented as evidence of anything and is excluded from
   Configuration → Start → pause at `human_review_gate` → Human Review form → resume →
   completion, all visible in `app/run_status_page.py`'s stage checklist and confirmed here
   by the audit trail.
+- **Every LLM call in this run was traced end to end in LangFuse**, with a human-review
+  score attached to the reviewed mapping — see `langfuse/langfuse_trace.md` for the real
+  exported traces (prompts, structured outputs, model, timing) from `ai_mapper`,
+  `rule_generator`, and `doc_generator`.
 - `pytest -q` was 53/53 passing immediately before this run (see `evidence/pytest-final.txt`
   for the transcript format; re-run to reproduce).
 
