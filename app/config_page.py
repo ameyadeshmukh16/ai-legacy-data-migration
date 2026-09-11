@@ -146,7 +146,7 @@ def render(ctx) -> None:
         ctx["reload_settings"]()
         new_svc = ctx["create_service"]()
         new_svc.start()
-        st.session_state["page"] = "Run Status"
+        st.session_state["_pending_page"] = "Run Status"
         st.rerun()
 
     if run_active:

@@ -104,7 +104,7 @@ def render(ctx) -> None:
             )
         try:
             svc.submit_decisions(decisions)
-            st.session_state["page"] = "Run Status"
+            st.session_state["_pending_page"] = "Run Status"
             st.rerun()
         except RuntimeError as e:
             st.error(str(e))

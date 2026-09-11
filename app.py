@@ -107,7 +107,13 @@ PAGES = [
 ]
 if "page" not in st.session_state:
     st.session_state["page"] = "Configuration"
-# A page may set st.session_state["page"] before its st.rerun() to jump here.
+# A page requests a jump by setting st.session_state["_pending_page"] before its
+# st.rerun(). Streamlit forbids writing "page" directly once the keyed radio below
+# has been instantiated on a run, so we apply the pending value to "page" here,
+# BEFORE the radio widget is created.
+pending = st.session_state.pop("_pending_page", None)
+if pending in PAGES:
+    st.session_state["page"] = pending
 page = st.sidebar.radio("Page", PAGES, key="page")
 
 st.sidebar.divider()
